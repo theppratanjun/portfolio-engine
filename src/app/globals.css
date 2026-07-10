@@ -1,26 +1,69 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
+/* ============================================================
+   DESIGN TOKENS จาก portfolio game.html
+   ============================================================ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #0c0e12;
+  --bg-panel: #13161c;
+  --bg-panel-2: #181c24;
+  --grid: #1c2129;
+  --edge: #262c36;
+  --text: #e6e9ef;
+  --text-dim: #8b94a3;
+  --text-faint: #5a626f;
+  --accent: #ff2e88;
+  --accent-2: #21e6c1;
+  --accent-3: #ffd23f;
+  --good: #3ddc84;
+  --radius: 4px;
+  --maxw: 1180px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+[data-theme="light"] {
+  --bg: #f4f5f7;
+  --bg-panel: #ffffff;
+  --bg-panel-2: #eef0f3;
+  --grid: #e2e5ea;
+  --edge: #d3d7de;
+  --text: #11151c;
+  --text-dim: #56606e;
+  --text-faint: #8a93a1;
+  --accent: #e0157a;
+  --accent-2: #0a9e88;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* subtle engine grid backdrop */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: 
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 44px 44px;
+  opacity: 0.35;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
 }
