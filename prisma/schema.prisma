@@ -1,0 +1,84 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL") // 📌 จำเป็นสำหรับ Supabase
+}
+
+// ==========================================
+// 1. ตาราง Users (ข้อมูลผู้ใช้งาน)
+// ==========================================
+model User {
+  id           String     @id @default(uuid()) @db.Uuid
+  email        String     @unique
+  passwordHash String     @map("password_hash")
+  role         Role       @default(GUEST)
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  // ความสัมพันธ์ (Relations)
+  sessions     Session[]
+  auditLogs    AuditLog[]
+
+  @@map("users") // 📌 เปลี่ยนชื่อตารางใน DB ให้เป็นตัวเล็ก/พหูพจน์
+}
+
+// ==========================================
+// 2. ตาราง Sessions (จัดการการล็อกอิน)
+// ==========================================
+model Session {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  sessionToken String   @unique @map("session_token")
+  expiresAt    DateTime @map("expires_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // ความสัมพันธ์ (เชื่อมกับ User)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// ==========================================
+// 3. ตาราง Leaderboard (เก็บคะแนนเกม Choose Me)
+// ==========================================
+model Leaderboard {
+  id          String   @id @default(uuid()) @db.Uuid
+  playerName  String   @map("player_name")
+  //companyName String?  @map("company_name") // ใส่ ? แปลว่าว่างได้ (Nullable)
+  score       Int
+  wave        Int      @default(1)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // 📌 สร้าง Index เพื่อให้ดึงข้อมูลจัดอันดับได้ไวปรู๊ดปร๊าด
+  @@index([score(sort: Desc)])
+  @@map("leaderboards")
+}
+
+// ==========================================
+// 4. ตาราง AuditLog (บันทึกรอยเท้า - มาตรฐานธนาคาร)
+// ==========================================
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  action    String   // เช่น "LOGIN_SUCCESS", "LOGIN_FAILED"
+  details   String?  // เก็บรายละเอียดเพิ่มเติมเป็นข้อความ
+  ipAddress String?  @map("ip_address")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // ถ้า User โดนลบ Log นี้จะไม่หายไป แต่ userId จะกลายเป็น Null แทน
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+}
+
+// กำหนดสิทธิ์ผู้ใช้งาน
+enum Role {
+  ADMIN
+  GUEST
+}

@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /* ============================================================
-   DESIGN TOKENS จาก portfolio game.html
+   DESIGN TOKENS
    ============================================================ */
 :root {
   --bg: #0c0e12;
@@ -19,7 +19,6 @@
   --accent-3: #ffd23f;
   --good: #3ddc84;
   --radius: 4px;
-  --maxw: 1180px;
 }
 
 [data-theme="light"] {
@@ -35,15 +34,8 @@
   --accent-2: #0a9e88;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-html {
-  scroll-behavior: smooth;
-}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
 
 body {
   background: var(--bg);
@@ -53,17 +45,11 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* subtle engine grid backdrop */
 body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
   background-image: 
     linear-gradient(var(--grid) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-  background-size: 44px 44px;
-  opacity: 0.35;
+  background-size: 44px 44px; opacity: 0.35;
   mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
 }
