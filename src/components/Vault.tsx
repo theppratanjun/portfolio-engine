@@ -68,6 +68,17 @@ export default function Vault() {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
 
+  // 📌 State สำหรับฟอร์ม
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState(""); // สำหรับสมัครสมาชิก
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+  
+  // 📌 State สลับโหมด (ล็อกอิน <-> สมัครสมาชิก)
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setMounted(true);
@@ -75,11 +86,9 @@ export default function Vault() {
       if (savedSession === "active") setIsUnlocked(true);
     }, 10);
 
-    // 📌 ดักฟังคำสั่งเปิด Modal จาก Hero
     const handleOpenAuth = () => setIsAuthOpen(true);
     window.addEventListener("openVaultAuthModal", handleOpenAuth);
 
-    // 📌 ดักฟังสถานะล็อกเอาต์จาก Hero เพื่อให้ทำงานซิงค์กัน
     const handleAuthStateChanged = () => {
       const savedSession = sessionStorage.getItem("vault_session");
       setIsUnlocked(savedSession === "active");
@@ -115,6 +124,13 @@ export default function Vault() {
       setActiveProjectId(null);
       setIsAuthOpen(false);
     }
+    // เคลียร์ฟอร์ม
+    setErrorMsg("");
+    setSuccessMsg("");
+    setEmail("");
+    setPassword("");
+    setConfirmPassword("");
+    setIsRegisterMode(false);
   };
 
   useEffect(() => {
@@ -141,12 +157,64 @@ export default function Vault() {
     else setIsAuthOpen(true);
   };
 
-  const handleLogin = (e: React.FormEvent | React.MouseEvent) => {
+  // 📌 ฟังก์ชันจัดการทั้ง สมัครสมาชิก และ ล็อกอิน
+  const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsUnlocked(true);
-    sessionStorage.setItem("vault_session", "active");
-    window.dispatchEvent(new Event("authStateChanged"));
-    handleCloseModal(); 
+    setIsLoading(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+
+    // เช็ครหัสผ่านให้ตรงกันในโหมดสมัครสมาชิก
+    if (isRegisterMode && password !== confirmPassword) {
+      setErrorMsg(language === "en" ? "Passwords do not match." : "รหัสผ่านไม่ตรงกัน");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      // 📌 แยก API ตามโหมด (Login หรือ Register)
+      const endpoint = isRegisterMode ? "/api/auth/register" : "/api/auth/login";
+      
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: email, password: password }) // ใช้ email เป็น username
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        if (isRegisterMode) {
+          // ถ้าสมัครสำเร็จ ให้สลับกลับมาหน้า Login
+          setSuccessMsg(language === "en" ? "Account created! Please sign in." : "สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ");
+          setIsRegisterMode(false);
+          setPassword("");
+          setConfirmPassword("");
+        } else {
+          // ถ้าล็อกอินสำเร็จ
+          setIsUnlocked(true);
+          sessionStorage.setItem("vault_session", "active");
+          window.dispatchEvent(new Event("authStateChanged"));
+          handleCloseModal(); 
+        }
+      } else {
+        setErrorMsg(data.error || "Authentication failed.");
+      }
+    } catch (error) {
+      setErrorMsg("Network error. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 📌 โครงสร้างเตรียมพร้อมสำหรับเชื่อมต่อ Google / GitHub OAuth (Supabase)
+  const handleOAuthClick = (provider: string) => {
+    // โค้ดสำหรับอนาคต: await supabase.auth.signInWithOAuth({ provider: 'github' })
+    setErrorMsg(
+      language === "en" 
+        ? `${provider} OAuth integration requires Supabase config. Please use email.` 
+        : `ระบบล็อกอินด้วย ${provider} ต้องตั้งค่า API Key ก่อน กรุณาใช้อีเมล`
+    );
   };
 
   const handleLogout = () => {
@@ -166,51 +234,133 @@ export default function Vault() {
         {/* ===================== AUTH MODAL ===================== */}
         <div 
           className={`fixed inset-0 bg-black/65 backdrop-blur-[4px] flex items-center justify-center p-5 transition-all duration-250 ${isAuthOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
-          style={{ zIndex: 99998 }} // 📌 ล็อกความลอยตัวระดับสูงสุด
+          style={{ zIndex: 99998 }}
           onClick={(e) => e.target === e.currentTarget && handleCloseModal()}
         >
           <div className={`w-full max-w-[380px] bg-[var(--bg-panel)] border border-[var(--edge)] rounded-lg p-[30px] relative transition-transform duration-250 ${isAuthOpen ? "translate-y-0" : "translate-y-3.5"}`}>
             <button onClick={handleCloseModal} className="absolute top-4 right-[18px] bg-transparent border-none text-[var(--text-dim)] text-[1.3rem] cursor-pointer leading-none hover:text-[var(--accent)]">×</button>
+            
             <h3 className="text-[1.25rem] font-bold mb-1 flex items-center">
-              {language === "en" ? "Sign in" : "เข้าสู่ระบบ"} <span className="ml-2 font-mono text-[0.66rem] text-[var(--accent-3)] border border-[var(--accent-3)] rounded-[3px] py-[2px] px-[7px]">DEMO</span>
+              {isRegisterMode 
+                ? (language === "en" ? "Create Account" : "สมัครสมาชิก") 
+                : (language === "en" ? "Sign in" : "เข้าสู่ระบบ")} 
+              <span className="ml-2 font-mono text-[0.66rem] text-[var(--accent-3)] border border-[var(--accent-3)] rounded-[3px] py-[2px] px-[7px]">SECURE</span>
             </h3>
+            
             <p className="text-[var(--text-dim)] text-[0.85rem] mb-5">
-              {language === "en" 
-                ? "Unlock the vault. In production this is Better Auth with sessions + protected routes; here it just flips the lock so you can see the flow."
-                : "ปลดล็อคคลังข้อมูล ในระบบจริงจะใช้ Better Auth จัดการ Session; ส่วนตรงนี้เป็นเพียงเดโม่เพื่อเปิดล็อคให้เห็นโครงสร้างจำลอง"}
+              {isRegisterMode 
+                ? (language === "en" ? "Register to access secured case studies." : "สมัครสมาชิกเพื่อเข้าถึงข้อมูลระดับสูง") 
+                : (language === "en" ? "Unlock the vault. Authenticating with secure HttpOnly cookies." : "เข้าสู่ระบบเพื่อปลดล็อค ยืนยันตัวตนผ่าน HttpOnly Cookie")}
             </p>
 
-            <form onSubmit={handleLogin}>
+            <form onSubmit={handleAuthSubmit}>
+              {/* 📌 ปุ่ม OAuth สำหรับอนาคต */}
               <div className="flex gap-2.5 mb-4">
-                <button type="button" onClick={handleLogin} className="flex-1 bg-[var(--bg-panel-2)] border border-[var(--edge)] text-[var(--text)] rounded-[var(--radius)] p-2.5 font-mono text-[0.78rem] cursor-pointer transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]">
+                <button type="button" onClick={() => handleOAuthClick("GitHub")} className="flex-1 bg-[var(--bg-panel-2)] border border-[var(--edge)] text-[var(--text)] rounded-[var(--radius)] p-2.5 font-mono text-[0.78rem] cursor-pointer transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]">
                   ◐ GitHub
                 </button>
-                <button type="button" onClick={handleLogin} className="flex-1 bg-[var(--bg-panel-2)] border border-[var(--edge)] text-[var(--text)] rounded-[var(--radius)] p-2.5 font-mono text-[0.78rem] cursor-pointer transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]">
+                <button type="button" onClick={() => handleOAuthClick("Google")} className="flex-1 bg-[var(--bg-panel-2)] border border-[var(--edge)] text-[var(--text)] rounded-[var(--radius)] p-2.5 font-mono text-[0.78rem] cursor-pointer transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]">
                   G Google
                 </button>
               </div>
+              
               <div className="text-center text-[var(--text-faint)] font-mono text-[0.72rem] my-3.5 relative">— or —</div>
+              
+              {/* ข้อความแจ้งเตือน */}
+              {errorMsg && (
+                <div className="mb-4 p-2 bg-[rgba(255,95,87,0.1)] border border-[var(--danger)] text-[var(--danger)] text-[0.75rem] font-mono rounded text-center">
+                  {errorMsg}
+                </div>
+              )}
+              {successMsg && (
+                <div className="mb-4 p-2 bg-[rgba(40,200,64,0.1)] border border-[var(--good)] text-[var(--good)] text-[0.75rem] font-mono rounded text-center">
+                  {successMsg}
+                </div>
+              )}
+
               <div className="mb-3.5">
                 <label className="block font-mono text-[0.72rem] text-[var(--text-dim)] mb-1.5">email</label>
-                <input type="email" placeholder="you@email.com" required className="w-full bg-[var(--bg)] border border-[var(--edge)] rounded-[var(--radius)] py-2.5 px-3 text-[var(--text)] font-mono text-[0.85rem] focus:outline-none focus:border-[var(--accent)]" />
+                <input 
+                  type="email" 
+                  placeholder="you@email.com" 
+                  required 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-[var(--bg)] border border-[var(--edge)] rounded-[var(--radius)] py-2.5 px-3 text-[var(--text)] font-mono text-[0.85rem] focus:outline-none focus:border-[var(--accent)]" 
+                />
               </div>
+
               <div className="mb-4">
                 <label className="block font-mono text-[0.72rem] text-[var(--text-dim)] mb-1.5">password</label>
-                <input type="password" placeholder="••••••••" required className="w-full bg-[var(--bg)] border border-[var(--edge)] rounded-[var(--radius)] py-2.5 px-3 text-[var(--text)] font-mono text-[0.85rem] focus:outline-none focus:border-[var(--accent)]" />
+                <input 
+                  type="password" 
+                  placeholder="••••••••" 
+                  required 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-[var(--bg)] border border-[var(--edge)] rounded-[var(--radius)] py-2.5 px-3 text-[var(--text)] font-mono text-[0.85rem] focus:outline-none focus:border-[var(--accent)]" 
+                />
               </div>
-              <button type="submit" className="w-full flex justify-center items-center font-mono text-[0.85rem] font-medium tracking-wide py-3 px-6 rounded-[var(--radius)] transition-all bg-[var(--accent)] text-white hover:-translate-y-1 hover:shadow-[0_8px_28px_color-mix(in_srgb,var(--accent)_45%,transparent)]">
-                {language === "en" ? "Unlock vault →" : "ปลดล็อคคลังข้อมูล →"}
+
+              {/* 📌 ช่องยืนยันรหัสผ่าน (แสดงเฉพาะตอนสมัครสมาชิก) */}
+              {isRegisterMode && (
+                <div className="mb-4">
+                  <label className="block font-mono text-[0.72rem] text-[var(--text-dim)] mb-1.5">confirm password</label>
+                  <input 
+                    type="password" 
+                    placeholder="••••••••" 
+                    required 
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full bg-[var(--bg)] border border-[var(--edge)] rounded-[var(--radius)] py-2.5 px-3 text-[var(--text)] font-mono text-[0.85rem] focus:outline-none focus:border-[var(--accent)]" 
+                  />
+                </div>
+              )}
+
+              <button 
+                type="submit" 
+                disabled={isLoading}
+                className={`w-full flex justify-center items-center font-mono text-[0.85rem] font-medium tracking-wide py-3 px-6 rounded-[var(--radius)] transition-all ${isLoading ? 'bg-[var(--text-faint)] cursor-not-allowed' : 'bg-[var(--accent)] text-white hover:-translate-y-1 hover:shadow-[0_8px_28px_color-mix(in_srgb,var(--accent)_45%,transparent)]'}`}
+              >
+                {isLoading 
+                  ? (language === "en" ? "Processing..." : "กำลังดำเนินการ...") 
+                  : (isRegisterMode 
+                      ? (language === "en" ? "Sign Up →" : "ยืนยันการสมัคร →")
+                      : (language === "en" ? "Unlock vault →" : "ปลดล็อคคลังข้อมูล →")
+                    )
+                }
               </button>
             </form>
+
+            {/* 📌 ปุ่มสลับโหมด Login / Register */}
+            <div className="mt-5 text-center font-mono text-[0.75rem]">
+              <span className="text-[var(--text-faint)]">
+                {isRegisterMode 
+                  ? (language === "en" ? "Already have an account? " : "มีบัญชีอยู่แล้ว? ")
+                  : (language === "en" ? "Need an account? " : "ยังไม่มีบัญชีใช่ไหม? ")}
+              </span>
+              <button 
+                onClick={() => {
+                  setIsRegisterMode(!isRegisterMode);
+                  setErrorMsg("");
+                  setSuccessMsg("");
+                }}
+                className="text-[var(--accent)] hover:underline border-none bg-transparent cursor-pointer"
+              >
+                {isRegisterMode 
+                  ? (language === "en" ? "Sign in" : "เข้าสู่ระบบ")
+                  : (language === "en" ? "Sign up" : "สมัครสมาชิก")}
+              </button>
+            </div>
+
           </div>
         </div>
 
         {/* ===================== VAULT DETAIL PAGE ===================== */}
         <div 
           className={`fixed inset-0 bg-[var(--bg)] overflow-y-auto transition-all duration-300 ${activeProject ? "opacity-100 pointer-events-auto translate-y-0" : "opacity-0 pointer-events-none translate-y-2.5"}`}
-          style={{ zIndex: 99997 }} // 📌 ล็อกให้อยู่บนสุด แต่ต่ำกว่า Navbar ของมันเอง
+          style={{ zIndex: 99997 }} 
         >
-          {/* 📌 Header Bar ที่คุณมองไม่เห็น คราวนี้ลอยทะลุ TopHUD แน่นอน */}
           <div 
             className="sticky top-0 w-full flex items-center justify-between py-4 px-6 bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] backdrop-blur-xl border-b border-[var(--edge)] shadow-sm"
             style={{ zIndex: 99999 }} 

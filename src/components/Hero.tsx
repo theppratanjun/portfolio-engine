@@ -20,7 +20,6 @@ export default function Hero() {
 
   const handleLockedResumeClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    // 📌 ส่ง Event สั่งให้ Vault เปิดหน้าต่าง Modal ขึ้นมาทันที
     window.dispatchEvent(new Event("openVaultAuthModal"));
   };
 
@@ -55,7 +54,7 @@ export default function Hero() {
       
       <p className="max-w-[560px] text-[var(--text-dim)] text-[1.08rem] my-[28px] mb-[36px] leading-relaxed">
         {language === "en" ? (
-          <>I&aposm <strong className="text-[var(--text)] font-semibold">Theppratan Junpanya</strong>, a computer-engineering graduate who builds <strong className="text-[var(--text)] font-semibold">full-stack systems that handle real users at scale</strong> — typed APIs, databases, real-time pipelines, the deploy stack. I think about <strong className="text-[var(--text)] font-semibold">the product, not just the code</strong>, and I ship games in <strong className="text-[var(--text)] font-semibold">Unity / C#</strong> on the side. Everything below is live. Some of it you can play right now.</>
+          <>I&apos;m <strong className="text-[var(--text)] font-semibold">Theppratan Junpanya</strong>, a computer-engineering graduate who builds <strong className="text-[var(--text)] font-semibold">full-stack systems that handle real users at scale</strong> — typed APIs, databases, real-time pipelines, the deploy stack. I think about <strong className="text-[var(--text)] font-semibold">the product, not just the code</strong>, and I ship games in <strong className="text-[var(--text)] font-semibold">Unity / C#</strong> on the side. Everything below is live. Some of it you can play right now.</>
         ) : (
           <>ผมคือ <strong className="text-[var(--text)] font-semibold">เทพประทาน จันทร์ปัญญา</strong> บัณฑิตวิศวกรรมคอมพิวเตอร์ผู้สร้าง <strong className="text-[var(--text)] font-semibold">ระบบ Full-Stack ที่รองรับผู้ใช้งานจริงระดับสเกล</strong> — ทั้ง API, ฐานข้อมูล, และระบบเรียลไทม์ ผมคำนึงถึง <strong className="text-[var(--text)] font-semibold">ตัวโปรดักต์ ไม่ใช่แค่การเขียนโค้ด</strong> และผมยังพัฒนาเกมด้วย <strong className="text-[var(--text)] font-semibold">Unity / C#</strong> อีกด้วย ผลงานด้านล่างนี้รันอยู่บนระบบจริง และคุณสามารถทดลองเล่นได้ทันที</>
         )}
@@ -72,12 +71,14 @@ export default function Hero() {
         <div className="flex items-center gap-3 ml-2">
           {isLoggedIn ? (
             <>
+              {/* 📌 เปลี่ยน href กลับไปหา API ด่านตรวจของเรา แต่ยังคง target="_blank" เพื่อเปิดแท็บใหม่ */}
               <a 
-                href="/resume.pdf" 
-                target="_blank" 
+                href="/api/files/resume" 
+                target="_blank"
+                rel="noopener noreferrer"
                 className="font-mono text-[0.85rem] font-medium tracking-[0.03em] py-[12px] px-[20px] rounded-[var(--radius)] cursor-pointer transition-all duration-200 inline-flex items-center gap-[0.6em] border border-[var(--good)] bg-[rgba(61,220,132,0.1)] text-[var(--good)] hover:bg-[var(--good)] hover:text-[#04201b]"
               >
-                ↓ resume.pdf
+                ↗ resume.pdf
               </a>
               <button 
                 onClick={handleLogout}
@@ -101,7 +102,7 @@ export default function Hero() {
           )}
         </div>
       </div>
-
+      
       {/* ===================== INSPECTOR BOX ===================== */}
       <div className="mt-[64px] border border-[var(--edge)] rounded-md bg-[linear-gradient(180deg,var(--bg-panel),var(--bg-panel-2))] overflow-hidden">
         <div className="flex items-center gap-[8px] py-[10px] px-[14px] border-b border-[var(--edge)] font-mono text-[0.72rem] text-[var(--text-dim)]">

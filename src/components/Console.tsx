@@ -124,13 +124,36 @@ export default function Console() {
         break;
 
       case "login":
-        if (arg === "admin123") {
-          setIsLoggedIn(true);
-          setLastActivity(Date.now());
-          print(<span className="text-[#3ddc84]">Login successful. Session authenticated via secure handshake.</span>);
-        } else {
-          print(<span className="text-[#ff2e88]">Invalid password. Usage: login [password]</span>);
+        const credentials = arg; // ดึงรหัสผ่านที่พิมพ์ต่อท้ายมาใช้
+        
+        if (!credentials) {
+          print(<span className="text-[#ff2e88]">Usage: login [password]</span>);
+          break;
         }
+
+        print(<span className="text-[#8b94a3]">Authenticating with secure gateway...</span>);
+        
+        // 📌 ยิง API ไปหาฐานข้อมูล
+        fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: "admin", password: credentials })
+        })
+        .then(async (res) => {
+          const data = await res.json();
+          if (res.ok) {
+            setIsLoggedIn(true);
+            setLastActivity(Date.now());
+            print(<span className="text-[#3ddc84] mt-1">Access Granted. Security clearance level: ADMIN.</span>);
+            print(<span className="text-[#21e6c1]">Type &apos;help&apos; to see available secure commands.</span>);
+          } else {
+            // ถ้ารหัสผิด
+            print(<span className="text-[#ff5f57] mt-1">Access Denied: {data.error}</span>);
+          }
+        })
+        .catch(() => {
+          print(<span className="text-[#ff5f57] mt-1">Error: Secure gateway is unreachable.</span>);
+        });
         break;
 
       case "logout":
@@ -193,8 +216,8 @@ export default function Console() {
       case "about":
         print(
           language === "en"
-            ? "Theppratan Junpanya — Computer engineering graduate. Full-stack engineer building scalable systems and interactive mechanics."
-            : "เทพประทาน จันทร์ปัญญา — บัณฑิตวิศวกรรมคอมพิวเตอร์ นักพัฒนาฟูลสแต็กผู้สร้างระบบที่รองรับการขยายตัวและเกมอินเทอร์แอกทีฟ"
+            ? "Theppratan Junpanya — Computer Engineering and Business Administration graduates, Project Developers creating scalable systems and interactive games, as well as E-commerce systems and Real-time platforms."
+            : "เทพประทาน จันทร์ปัญญา — บัณฑิตวิศวกรรมคอมพิวเตอร์ และ บัณฑิตบริหารธุรกิจ นักพัฒนาโปรเจกต์ผู้สร้างระบบที่รองรับการขยายตัวและเกมอินเทอร์แอกทีฟ รวมไปถึงระบบ E-commerce และแพลตฟอร์มเรียลไทม์"
         );
         break;
 
