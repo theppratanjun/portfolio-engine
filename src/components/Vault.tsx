@@ -3,49 +3,57 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useLanguage } from "@/context/LanguageContext";
+import dynamic from "next/dynamic"; 
 
-// 📌 1. โครงสร้างข้อมูลสำหรับแสดงหน้าไพ่สาธารณะ (Public Cards)
+// 📌 โหลด Component ย่อยแบบ Lazy Loading
+const WitchGameBuild = dynamic(() => import("./vault-projects/WitchGameBuild"), {
+  loading: () => <div className="p-10 text-center font-mono text-[var(--text-dim)]">Loading Component Data...</div>,
+  ssr: false 
+});
+
+// 📌 โครงสร้างข้อมูลสำหรับแสดงหน้าไพ่สาธารณะ (Public Cards)
 const VAULT_PROJECTS = [
   {
     id: "v01",
-    title: { en: "Interactive 3D Showreel", th: "ผลงาน 3D อินเทอร์แอกทีฟ" },
-    type: "// React Three Fiber · GSAP ScrollTrigger · WebGL",
+    // 📌 เปลี่ยนหัวข้อเป็น YouTube และ AI Content
+    title: { en: "AI Content & YouTube Channels", th: "ผลงานวิดีโอ AI & คอนเทนต์" },
+    type: "// Video Editing · Generative AI · YouTube",
     desc: {
-      en: ["A scrollytelling 3D experience — a model that assembles and rotates as you scroll, Iron-Man style.", "Built with R3F + GSAP ScrollTrigger + Draco-compressed GLB, with a 2D fallback for low-power devices."],
-      th: ["ประสบการณ์ 3D แบบ Scrollytelling — โมเดล 3 มิติที่จะประกอบร่างและหมุนตามการเลื่อนหน้าจอของคุณสไตล์ Iron-Man", "พัฒนาด้วย R3F + GSAP ScrollTrigger + Draco-compressed GLB พร้อมระบบ 2D สำรองสำหรับอุปกรณ์สเปคต่ำ"]
+      en: ["Creator of 'YarkRooMai' and 'InfinitySound365' channels. Producing high-quality videos and audio tracks using Generative AI tools.", "Showcasing multimedia generation, long-format video editing, and content optimization workflows."],
+      th: ["ผู้สร้างช่อง 'YarkRooMai' และ 'InfinitySound365' ผลิตวิดีโอและแทร็กเสียงคุณภาพสูงด้วยเครื่องมือ Generative AI", "แสดงทักษะการสร้างสื่อมัลติมีเดีย, ตัดต่อวิดีโอความยาวหลายชั่วโมง และปรับแต่งคอนเทนต์"]
     },
-    stageBig: "🧊",
+    stageBig: "🎬",
     stageCap: { 
-      en: "[ 3D canvas mounts here — a Blender/SolidWorks model that assembles & rotates on scroll ]", 
-      th: "[ พื้นที่สำหรับ 3D Canvas — โมเดลจาก Blender/SolidWorks จะหมุนและประกอบร่างที่นี่ ]" 
+      en: "[ Multimedia showcase — Custom AI-generated video and audio workflows ]", 
+      th: "[ พื้นที่แสดงผลงานมัลติมีเดีย — กระบวนการผลิตวิดีโอและเสียงด้วย AI ]" 
     }
   },
   {
     id: "v02",
-    title: { en: "[Unreleased Game Build]", th: "[ตัวเกมเวอร์ชันกำลังพัฒนา]" },
-    type: "// Unity · WebGL · work in progress",
+    title: { en: "Witch 2.5D RPG (Web Build)", th: "ตัวเกม Witch 2.5D RPG" },
+    type: "// Unity · WebGL · Active Development",
     desc: {
-      en: ["An early build of my next game — playable, but not ready for the public yet. Sign in for the dev build + devlog.", "Shows gameplay systems, state management, and WebGL optimization in progress."],
-      th: ["ตัวเกมเวอร์ชันทดสอบที่กำลังพัฒนา — สามารถเล่นได้แต่ยังไม่พร้อมเผยแพร่สู่สาธารณะ ล็อกอินเพื่อดูบิลด์และบันทึกการพัฒนา", "แสดงระบบเกมเพลย์, การจัดการสถานะ, และการปรับแต่งประสิทธิภาพ WebGL"]
+      en: ["An early build of my Witch 2.5D game — playable, but actively being updated.", "Shows gameplay systems, state management, and WebGL optimization."],
+      th: ["ตัวเกมเวอร์ชันทดสอบที่กำลังพัฒนา — สามารถเล่นได้และมีการอัปเดตแพตช์อยู่เรื่อยๆ", "แสดงระบบเกมเพลย์, การจัดการสถานะ, และการปรับแต่งประสิทธิภาพ WebGL"]
     },
     stageBig: "🎮",
     stageCap: { 
-      en: "[ Unity WebGL dev build embeds here — playable, pre-release ]", 
-      th: "[ พื้นที่สำหรับฝัง Unity WebGL รุ่นทดสอบ — ทดลองเล่นก่อนปล่อยจริง ]" 
+      en: "[ Loading WitchGameBuild Component... ]", 
+      th: "[ กำลังตรวจสอบสิทธิ์และโหลด Component: WitchGameBuild... ]" 
     }
   },
   {
     id: "v03",
-    title: { en: "[Experiment / Deep-dive]", th: "[บันทึกการทดลองเชิงลึก]" },
-    type: "// add more anytime — Modular",
+    title: { en: "Coffee Shop Web App", th: "ระบบจัดการร้านกาแฟ (E-Commerce)" },
+    type: "// Next.js · Prisma · Planned Sprint",
     desc: {
-      en: ["The vault is backed by a modular architecture, so I can keep adding hidden projects forever.", "This card is the pattern: preview in public, full thing behind auth."],
-      th: ["คลังข้อมูลนี้ทำงานด้วยโครงสร้างแบบ Modular ผมสามารถเพิ่มโปรเจกต์ลับใหม่ๆ เข้ามาได้ตลอดเวลา", "นี่คือรูปแบบการนำเสนอ: โชว์ตัวอย่างในพื้นที่สาธารณะ และเก็บรายละเอียดตัวเต็มไว้หลังระบบล็อกอิน"]
+      en: ["A full-stack e-commerce simulation for a coffee shop. Features cart, checkout, and inventory.", "Scheduled for future release (Coming Soon...)."],
+      th: ["ระบบจำลอง E-commerce สำหรับร้านกาแฟ มีระบบตะกร้าสินค้า การชำระเงิน และตัดสต๊อก", "เตรียมเปิดตัวในเร็วๆ นี้ (Coming Soon...)"]
     },
-    stageBig: "🧪",
+    stageBig: "☕",
     stageCap: { 
-      en: "[ Each new vault row becomes its own Sub-Component automatically ]", 
-      th: "[ ข้อมูลใหม่จะถูกสร้างเป็น Sub-Component ของตัวเองอัตโนมัติ ]" 
+      en: "[ CoffeeShopApp Component scheduled for deployment ]", 
+      th: "[ เตรียมอัปเดต CoffeeShopApp ลงในพื้นที่นี้ใน Sprint ถัดไป ]" 
     }
   }
 ];
@@ -80,7 +88,6 @@ export default function Vault() {
       const savedSession = sessionStorage.getItem("vault_session");
       setIsUnlocked(savedSession === "active");
       
-      // ถ้าบัญชีโดนลบ ให้ปิดหน้าต่างทั้งหมดอัตโนมัติ
       if (savedSession !== "active") {
         setActiveProjectId(null);
         setIsAuthOpen(false);
@@ -236,7 +243,7 @@ export default function Vault() {
             <p className="text-[var(--text-dim)] text-[0.85rem] mb-5">
               {isRegisterMode 
                 ? (language === "en" ? "Register to access secured case studies." : "สมัครสมาชิกเพื่อเข้าถึงข้อมูลระดับสูง") 
-                : (language === "en" ? "Unlock the vault. Authenticating with secure HttpOnly cookies." : "เข้าสู่ระบบเพื่อปลดล็อค ยืนยันตัวตนผ่าน HttpOnly Cookie")}
+                : (language === "en" ? "Unlock the vault. Authenticating with secure HttpOnly cookies." : "เข้าสู่ระบบเพื่อปลดล็อก สิทธิ์ เข้าใช้งานระบบ")}
             </p>
 
             <form onSubmit={handleAuthSubmit}>
@@ -343,7 +350,6 @@ export default function Vault() {
           className={`fixed inset-0 bg-[var(--bg)] overflow-y-auto transition-all duration-300 ${activeProject ? "opacity-100 pointer-events-auto translate-y-0" : "opacity-0 pointer-events-none translate-y-2.5"}`}
           style={{ zIndex: 99997 }} 
         >
-          {/* 📌 Header ของหน้าต่างย่อย */}
           <div 
             className="sticky top-0 w-full flex items-center justify-between py-4 px-6 bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] backdrop-blur-xl border-b border-[var(--edge)] shadow-sm"
             style={{ zIndex: 99999 }} 
@@ -360,7 +366,6 @@ export default function Vault() {
               {"// vault / "}<b className="text-[var(--accent)]">{activeProject?.id}</b>
             </span>
             
-            {/* 📌 ย้ายปุ่มตั้งค่าบัญชีมาไว้มุมขวาบนคู่กับ Logout */}
             <div className="flex items-center gap-2">
               <button onClick={() => window.dispatchEvent(new Event("openAccountSettings"))} className="font-mono text-[0.72rem] cursor-pointer bg-[var(--bg-panel)] border border-[var(--edge)] text-[var(--text-dim)] py-2 px-4 rounded-[var(--radius)] transition-all hover:text-[var(--text)] hover:border-[var(--text-dim)]">
                 ⚙️ {language === "en" ? "SETTINGS" : "ตั้งค่า"}
@@ -379,34 +384,69 @@ export default function Vault() {
               <h1 className="text-[clamp(1.9rem,4vw,3rem)] font-bold tracking-tight mb-2.5 leading-tight">{activeProject.title[language]}</h1>
               <div className="font-mono text-[0.85rem] text-[var(--accent-2)] mb-7">{activeProject.type}</div>
               
+              {/* 📌 หน้าจอจำลองที่กำลังเตรียมโหลดข้อมูล */}
               <div className="border border-[var(--edge)] rounded-lg bg-[var(--bg-panel)] min-h-[340px] flex flex-col items-center justify-center gap-3.5 text-center p-10 mb-7 shadow-sm">
                 <div className="text-[2.4rem]">{activeProject.stageBig}</div>
                 <div className="font-mono text-[0.8rem] text-[var(--text-dim)] max-w-[460px]">{activeProject.stageCap[language]}</div>
               </div>
 
-              {/* 📌 2. Dynamic Component Rendering (หัวใจของ Modular) */}
+              {/* 📌 Dynamic Component Rendering */}
               <div className="mt-10">
+                {/* 📌 ส่วนแสดงผลงานสำหรับ V01 (YouTube Channels) */}
                 {activeProjectId === "v01" && (
-                  <div className="p-8 border border-dashed border-[var(--edge)] rounded bg-[var(--bg-panel-2)] text-center text-[var(--text-dim)] font-mono">
-                    {"// TODO: Import <Interactive3D /> component here"}
-                    <br />
-                    <span className="text-[var(--text-faint)] text-[0.7rem] mt-3 block">src/components/vault-projects/Interactive3D.tsx</span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    
+                    {/* Channel 1 */}
+                    <div className="p-6 border border-[var(--edge)] rounded bg-[var(--bg-panel-2)] text-left flex flex-col">
+                      <h3 className="font-mono text-[1.1rem] text-[var(--text)] font-bold mb-3">🎬 YarkRooMai</h3>
+                      <p className="font-mono text-[0.8rem] text-[var(--text-dim)] mb-6 flex-1">
+                        {language === "en" 
+                          ? "Content focusing on narrative storytelling and AI-generated visuals. Leveraging tools like Midjourney, Runway, and CapCut to optimize workflow." 
+                          : "ช่องคอนเทนต์เน้นการเล่าเรื่องพร้อมภาพประกอบจาก AI ประยุกต์ใช้เครื่องมือสร้างภาพและตัดต่อด้วย CapCut แบบครบวงจร"}
+                      </p>
+                      <a 
+                        href="https://www.youtube.com/@YarkRooMai" 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="bg-[#FF0000] text-white font-mono text-[0.8rem] py-3 rounded text-center transition-all hover:brightness-110 font-bold tracking-wide"
+                      >
+                        YouTube ↗
+                      </a>
+                    </div>
+
+                    {/* Channel 2 */}
+                    <div className="p-6 border border-[var(--edge)] rounded bg-[var(--bg-panel-2)] text-left flex flex-col">
+                      <h3 className="font-mono text-[1.1rem] text-[var(--text)] font-bold mb-3">🎧 InfinitySound365</h3>
+                      <p className="font-mono text-[0.8rem] text-[var(--text-dim)] mb-6 flex-1">
+                        {language === "en" 
+                          ? "A channel dedicated to audio experiences, utilizing AI audio generation tools (like Suno/Whisk) combined with long-format video editing techniques." 
+                          : "ช่องสำหรับการฟังเสียง มุ่งเน้นการสร้างเสียงดนตรีและบรรยากาศด้วย AI (เช่น Suno/Whisk) ควบคู่กับการประมวลผลวิดีโอความยาวหลายชั่วโมง"}
+                      </p>
+                      <a 
+                        href="https://www.youtube.com/@InfinitySound365" 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="bg-[#FF0000] text-white font-mono text-[0.8rem] py-3 rounded text-center transition-all hover:brightness-110 font-bold tracking-wide"
+                      >
+                        YouTube ↗
+                      </a>
+                    </div>
                   </div>
                 )}
 
                 {activeProjectId === "v02" && (
-                  <div className="p-8 border border-dashed border-[var(--edge)] rounded bg-[var(--bg-panel-2)] text-center text-[var(--text-dim)] font-mono">
-                    {"// TODO: Import <WitchGameBuild /> component here"}
-                    <br />
-                    <span className="text-[var(--text-faint)] text-[0.7rem] mt-3 block">src/components/vault-projects/WitchGameBuild.tsx</span>
+                  <div className="w-full">
+                    <WitchGameBuild />
                   </div>
                 )}
 
                 {activeProjectId === "v03" && (
-                  <div className="p-8 border border-dashed border-[var(--edge)] rounded bg-[var(--bg-panel-2)] text-center text-[var(--text-dim)] font-mono">
-                    {"// TODO: Import <CoffeeShopApp /> component here"}
-                    <br />
-                    <span className="text-[var(--text-faint)] text-[0.7rem] mt-3 block">src/components/vault-projects/CoffeeShopApp.tsx</span>
+                  <div className="p-10 border border-dashed border-[var(--edge)] rounded bg-[var(--bg-panel-2)] text-center flex flex-col items-center justify-center min-h-[200px]">
+                    <div className="text-3xl mb-3 animate-pulse opacity-80">🚧</div>
+                    <h3 className="font-mono text-lg text-[var(--text)] font-bold mb-2">Module Scheduled for Deployment</h3>
+                    <p className="font-mono text-[0.8rem] text-[var(--text-dim)] max-w-md">
+                      {language === "en" ? "The E-Commerce module is scheduled for the next sprint. Coming soon!" : "โมดูล E-Commerce ถูกวางแผนไว้ใน Sprint ถัดไป กำลังเตรียมพร้อมสำหรับการติดตั้ง!"}
+                    </p>
                   </div>
                 )}
               </div>
@@ -430,10 +470,11 @@ export default function Vault() {
             <h2 className="text-4xl md:text-5xl font-bold tracking-tight mt-4 mb-3 leading-[1.05]">
               {language === "en" ? "The vault — sign in to unlock" : "คลังข้อมูลลับ — ลงชื่อเข้าใช้เพื่อปลดล็อค"}
             </h2>
-            <p className="text-[var(--text-dim)]">
+            
+            <p className="text-[var(--text-dim)] leading-relaxed">
               {language === "en" 
-                ? <>The work above is the public preview. The full case studies, source, and my interactive <b>3D experiments</b> live behind auth — partly because some are unfinished, but mostly because this whole section <i>is</i> a demo: real <b>authentication</b> + <b>protected routes</b>. New projects get added here over time; each one auto-shows a teaser out here.</>
-                : <>ผลงานด้านบนคือพรีวิวสาธารณะ กรณีศึกษาฉบับเต็ม, ซอร์สโค้ด และ <b>โปรเจกต์ทดลอง 3D</b> จะถูกเก็บไว้หลังระบบล็อกอิน — เหตุผลส่วนหนึ่งเพราะบางอันยังไม่เสร็จสมบูรณ์ แต่เหตุผลหลักคือพื้นที่ส่วนนี้ <i>คือ</i> การเดโม่ระบบ <b>Authentication</b> + <b>Protected routes</b> ของจริง</>}
+                ? <>The items above are for public display only. Full projects, source code, and works-in-progress are locked behind the authentication wall. This area is purpose-built to showcase secure user authentication and <b>protected routes</b>.</>
+                : <>ผลงานด้านบนเป็นเพียงส่วนที่จัดแสดงสาธารณะ โปรเจกต์ตัวเต็ม, ซอร์สโค้ด, และผลงานที่กำลังอยู่ระหว่างการพัฒนา จะถูกป้องกันไว้หลังระบบล็อกอิน — พื้นที่ส่วนนี้ถูกออกแบบมาโดยเฉพาะเพื่อสาธิตระบบ <b>Authentication</b> ที่ปลอดภัยและการทำ <b>Protected routes</b></>}
             </p>
           </div>
 
@@ -444,8 +485,8 @@ export default function Vault() {
               </span>
               <span>
                 {language === "en" 
-                  ? (isUnlocked ? "welcome back · click a card to open it" : "3 hidden projects · sign in to view")
-                  : (isUnlocked ? "ยินดีต้อนรับกลับ · คลิกที่กล่องเพื่อเปิดอ่าน" : "ซ่อนอยู่ 3 โปรเจกต์ · ลงชื่อเข้าใช้เพื่อดูเนื้อหา")}
+                  ? (isUnlocked ? "welcome back · click a card to open it" : "hidden projects & works-in-progress · sign in to view")
+                  : (isUnlocked ? "ยินดีต้อนรับกลับ · คลิกที่กล่องเพื่อเปิดดูโปรเจกต์" : "ผลงานที่ถูกซ่อน & โปรเจกต์ที่กำลังพัฒนา · ลงชื่อเข้าใช้เพื่อดูเนื้อหา")}
               </span>
               {isUnlocked && (
                 <div className="ml-auto flex items-center gap-2">

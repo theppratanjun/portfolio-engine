@@ -6,8 +6,17 @@ import { useLanguage } from "@/context/LanguageContext";
 export default function Hero() {
   const { language } = useLanguage();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  
+  const [mounted, setMounted] = useState(false);
+  const [typedText, setTypedText] = useState("");
+
+  const textToType = language === "en"
+    ? "Theppratan Junpanya — Computer Engineering & Business Administration Graduate"
+    : "เทพประทาน จันทร์ปัญญา — บัณฑิตวิศวกรรมคอมพิวเตอร์ และ บัณฑิตบริหารธุรกิจ";
 
   useEffect(() => {
+    const mountTimer = setTimeout(() => setMounted(true), 100);
+    
     const checkAuth = () => {
       const session = sessionStorage.getItem("vault_session");
       setIsLoggedIn(session === "active");
@@ -15,8 +24,37 @@ export default function Hero() {
     
     checkAuth();
     window.addEventListener("authStateChanged", checkAuth);
-    return () => window.removeEventListener("authStateChanged", checkAuth);
+    
+    return () => {
+      clearTimeout(mountTimer);
+      window.removeEventListener("authStateChanged", checkAuth);
+    };
   }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    
+    let i = 0;
+    let typingInterval: NodeJS.Timeout;
+
+    const resetTimer = setTimeout(() => {
+      setTypedText(""); 
+      
+      typingInterval = setInterval(() => {
+        if (i < textToType.length) {
+          setTypedText(textToType.slice(0, i + 1));
+          i++;
+        } else {
+          clearInterval(typingInterval);
+        }
+      }, 45); 
+    }, 10);
+
+    return () => {
+      clearTimeout(resetTimer);
+      clearInterval(typingInterval);
+    };
+  }, [textToType, mounted]);
 
   const handleLockedResumeClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -25,7 +63,6 @@ export default function Hero() {
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
-    
     sessionStorage.removeItem("vault_session");
     setIsLoggedIn(false);
     window.dispatchEvent(new Event("authStateChanged"));
@@ -33,38 +70,89 @@ export default function Hero() {
 
   return (
     <section className="pt-[140px] pb-[70px] relative">
-      <div className="font-mono text-[0.74rem] text-[var(--text-dim)] flex gap-[18px] flex-wrap mb-[30px]">
-        <span><b className="text-[var(--good)] font-medium">●</b> {language === "en" ? "open to work" : "เปิดรับงาน"}</span>
-        <span>{language === "en" ? "target" : "เป้าหมาย"}: <span className="text-[var(--accent-2)]">{language === "en" ? "full-stack / backend / gameplay eng" : "วิศวกรซอฟต์แวร์ / แบ็กเอนด์ / เกมเพลย์"}</span></span>
+      
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes sharp-blink {
+          0%, 49% { opacity: 1; }
+          50%, 99% { opacity: 0; }
+          100% { opacity: 1; }
+        }
+        .animate-sharp-blink {
+          animation: sharp-blink 1.1s infinite;
+        }
+        @keyframes text-glow-pulse {
+          0%, 100% { opacity: 1; text-shadow: 0 0 12px currentColor; }
+          50% { opacity: 0.5; text-shadow: 0 0 3px currentColor; }
+        }
+        .animate-glow-pulse {
+          animation: text-glow-pulse 2s ease-in-out infinite;
+        }
+      `}} />
+
+      {/* 📌 เปลี่ยน transition-all เป็น transition ปกติ เพื่อไม่ให้ขนาดฟอนต์ถูก animate */}
+      <div 
+        className={`font-mono text-[0.74rem] text-[var(--text-dim)] flex gap-[18px] flex-wrap mb-[30px] transition duration-1000 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+      >
+        <span><b className="text-[var(--good)] font-medium animate-glow-pulse">●</b> {language === "en" ? "open to work" : "เปิดรับงาน"}</span>
+        <span>{language === "en" ? "target" : "เป้าหมาย"}: <span className="text-[var(--accent-2)] animate-glow-pulse">{language === "en" ? "full-stack / backend / gameplay eng" : "วิศวกรซอฟต์แวร์ / แบ็กเอนด์ / เกมเพลย์"}</span></span>
         <span>{language === "en" ? "loc: nonthaburi · remote-ready" : "พื้นที่: นนทบุรี · พร้อมทำงานทางไกล"}</span>
       </div>
       
-      <span className="font-mono text-[0.72rem] tracking-[0.22em] uppercase text-[var(--accent)] font-medium inline-flex items-center gap-[0.6em] before:content-[''] before:w-[18px] before:h-[1px] before:bg-[var(--accent)]">
-        {language === "en" ? "computer engineering · product-minded engineer" : "วิศวกรรมคอมพิวเตอร์ · นักพัฒนาที่เข้าใจโปรดักต์"}
+      <span 
+        className={`font-mono text-[0.72rem] tracking-[0.22em] uppercase text-[var(--accent)] font-medium inline-flex items-center gap-[0.6em] before:content-[''] before:w-[18px] before:h-[1px] before:bg-[var(--accent)] transition duration-1000 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+        style={{ transitionDelay: '100ms' }}
+      >
+        {language === "en" ? "double degree · product-minded engineer" : "วิศวกรรมคอมพิวเตอร์ · บริหารธุรกิจ"}
       </span>
       
-      <h1 className="text-[clamp(2.6rem,7vw,5.4rem)] leading-[0.98] font-bold tracking-[-0.02em] mb-2 mt-4">
+      <h1 
+        className={`font-bold tracking-[-0.02em] mb-2 mt-4 transition duration-1000 ${
+          language === "en" 
+            ? "text-[clamp(2.6rem,7vw,5.4rem)] leading-[0.98]" 
+            : "text-[clamp(2rem,5vw,4rem)] leading-[1.1]" 
+        } ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+        style={{ transitionDelay: '200ms' }}
+      >
         {language === "en" ? "I build " : "ผมสร้าง "}
-        <em className="not-italic text-[var(--accent)] relative after:content-['_'] after:text-[var(--accent)] after:animate-[blink_1.1s_steps(1)_infinite]">
+        <em className="not-italic text-[var(--accent)]">
           {language === "en" ? "systems" : "ระบบ"}
+          <span className="animate-sharp-blink">_</span>
         </em>
         {language === "en" ? " that ship" : " ที่ใช้งานได้จริง"}
-        <span className="block text-[var(--text-faint)] text-[clamp(1rem,2.4vw,1.5rem)] font-medium font-mono tracking-[0.04em] mt-[18px]">
-          — {language === "en" ? "real-time platforms, products at scale, and games" : "แพลตฟอร์มเรียลไทม์, โปรดักต์สเกลใหญ่, และเกม"}
+        
+        <span className={`block text-[var(--text-faint)] font-medium font-mono tracking-[0.04em] mt-[18px] ${
+          language === "en" ? "text-[clamp(1rem,2.4vw,1.5rem)]" : "text-[clamp(0.9rem,1.8vw,1.25rem)]"
+        }`}>
+          — {language === "en" ? "real-time platforms, products at scale, and games" : "ข้อมูลเวลาจริง, ผลิตภัณฑ์ที่รองรับผู้ใช้งานจำนวนมหาศาล, และเกม"}
         </span>
       </h1>
       
-      <p className="max-w-[560px] text-[var(--text-dim)] text-[1.08rem] my-[28px] mb-[36px] leading-relaxed">
+      <div 
+        className={`mt-7 mb-3 font-mono text-[0.85rem] md:text-[0.95rem] min-h-[24px] flex items-center flex-wrap transition duration-1000 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+        style={{ transitionDelay: '300ms' }}
+      >
+        <span className="text-[var(--accent-2)] mr-2 font-bold">{">"}</span>
+        <span className="font-semibold text-[var(--text)]">{typedText}</span>
+        <span className="inline-block w-[8px] h-[1.2em] ml-1.5 bg-[var(--accent-2)] opacity-80 animate-sharp-blink"></span>
+      </div>
+
+      <p 
+        className={`max-w-[560px] text-[var(--text-dim)] text-[1.08rem] mb-[36px] leading-relaxed transition duration-1000 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+        style={{ transitionDelay: '400ms' }}
+      >
         {language === "en" ? (
-          <>I&apos;m <strong className="text-[var(--text)] font-semibold">Theppratan Junpanya</strong>, a computer-engineering graduate who builds <strong className="text-[var(--text)] font-semibold">full-stack systems that handle real users at scale</strong> — typed APIs, databases, real-time pipelines, the deploy stack. I think about <strong className="text-[var(--text)] font-semibold">the product, not just the code</strong>, and I ship games in <strong className="text-[var(--text)] font-semibold">Unity / C#</strong> on the side. Everything below is live. Some of it you can play right now.</>
+          <>I build <strong className="text-[var(--text)] font-semibold">full-stack systems that handle real users at scale</strong> — typed APIs, databases, real-time pipelines, the deploy stack. I think about <strong className="text-[var(--text)] font-semibold">the product, not just the code</strong>, and I ship games in <strong className="text-[var(--text)] font-semibold">Unity / C#</strong> on the side. Everything below is live. Some of it you can play right now.</>
         ) : (
-          <>ผมคือ <strong className="text-[var(--text)] font-semibold">เทพประทาน จันทร์ปัญญา</strong> บัณฑิตวิศวกรรมคอมพิวเตอร์ผู้สร้าง <strong className="text-[var(--text)] font-semibold">ระบบ Full-Stack ที่รองรับผู้ใช้งานจริงระดับสเกล</strong> — ทั้ง API, ฐานข้อมูล, และระบบเรียลไทม์ ผมคำนึงถึง <strong className="text-[var(--text)] font-semibold">ตัวโปรดักต์ ไม่ใช่แค่การเขียนโค้ด</strong> และผมยังพัฒนาเกมด้วย <strong className="text-[var(--text)] font-semibold">Unity / C#</strong> อีกด้วย ผลงานด้านล่างนี้รันอยู่บนระบบจริง และคุณสามารถทดลองเล่นได้ทันที</>
+          <>ผมคือผู้พัฒนา <strong className="text-[var(--text)] font-semibold">ระบบ Full-Stack ที่รองรับผู้ใช้งานจริงระดับสากล</strong> — ทั้ง API, ฐานข้อมูล, และระบบเรียลไทม์ ผมคำนึงถึง <strong className="text-[var(--text)] font-semibold">ตัวผลิตภัณฑ์ ไม่ใช่แค่การเขียนโค้ด</strong> และผมยังพัฒนาเกมด้วย <strong className="text-[var(--text)] font-semibold">Unity / C#</strong> อีกด้วย ผลงานด้านล่างนี้รันอยู่บนระบบจริง และคุณสามารถทดลองเล่นได้ทันที</>
         )}
       </p>
       
-      <div className="flex gap-[14px] flex-wrap items-center">
+      <div 
+        className={`flex gap-[14px] flex-wrap items-center transition duration-1000 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+        style={{ transitionDelay: '500ms' }}
+      >
         <a className="font-mono text-[0.85rem] font-medium tracking-[0.03em] py-[13px] px-[22px] rounded-[var(--radius)] cursor-pointer transition-all duration-200 inline-flex items-center gap-[0.6em] border border-transparent bg-[var(--accent)] text-white hover:-translate-y-[2px] hover:shadow-[0_8px_28px_color-mix(in_srgb,var(--accent)_45%,transparent)]" href="#play">
-          ▶ {language === "en" ? "Play a demo" : "ลองเล่นเดโม่"}
+          ▶ {language === "en" ? "Play Now" : "ลองเล่นเลย"}
         </a>
         <a className="font-mono text-[0.85rem] font-medium tracking-[0.03em] py-[13px] px-[22px] rounded-[var(--radius)] cursor-pointer transition-all duration-200 inline-flex items-center gap-[0.6em] border border-[var(--edge)] bg-transparent text-[var(--text)] hover:border-[var(--accent)] hover:text-[var(--accent)]" href="#work">
           {language === "en" ? "Browse work" : "ดูผลงาน"}
@@ -81,7 +169,6 @@ export default function Hero() {
               >
                 ↗ resume.pdf
               </a>
-              {/* 📌 เพิ่มปุ่ม Settings ตรงนี้ */}
               <button 
                 onClick={() => window.dispatchEvent(new Event("openAccountSettings"))}
                 className="font-mono text-[0.65rem] text-[var(--text-faint)] hover:text-[var(--text)] transition-colors border border-transparent hover:border-[var(--edge)] px-2 py-1 rounded"
@@ -111,8 +198,10 @@ export default function Hero() {
         </div>
       </div>
       
-      {/* ... โค้ด INSPECTOR BOX ตามเดิม ... */}
-      <div className="mt-[64px] border border-[var(--edge)] rounded-md bg-[linear-gradient(180deg,var(--bg-panel),var(--bg-panel-2))] overflow-hidden">
+      <div 
+        className={`mt-[64px] border border-[var(--edge)] rounded-md bg-[linear-gradient(180deg,var(--bg-panel),var(--bg-panel-2))] overflow-hidden transition duration-1000 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+        style={{ transitionDelay: '600ms' }}
+      >
         <div className="flex items-center gap-[8px] py-[10px] px-[14px] border-b border-[var(--edge)] font-mono text-[0.72rem] text-[var(--text-dim)]">
           <span className="flex gap-[6px]">
             <i className="w-[11px] h-[11px] rounded-full bg-[#ff5f57] block"></i>
@@ -136,7 +225,7 @@ export default function Hero() {
           </div>
           <div className="bg-[var(--bg-panel)] py-[18px] px-[16px]">
             <div className="font-mono text-[0.68rem] text-[var(--text-faint)] uppercase tracking-[0.12em]">Status</div>
-            <div className="text-[1.15rem] font-bold mt-[4px] text-[var(--good)]">READY <small className="text-[0.8rem] font-medium font-mono">to ship</small></div>
+            <div className="text-[1.15rem] font-bold mt-[4px] text-[var(--good)] animate-glow-pulse">READY <small className="text-[0.8rem] font-medium font-mono">to ship</small></div>
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 type Language = "en" | "th";
 
@@ -12,11 +12,30 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  // 📌 กำหนดให้ "en" เป็นภาษาเริ่มต้น
   const [language, setLanguage] = useState<Language>("en");
 
+  // 📌 แก้ไข Error: ใช้ setTimeout ครอบเพื่อไม่ให้เกิด Cascading Renders
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const savedLang = localStorage.getItem("portfolio_lang") as Language | null;
+      if (savedLang) {
+        setLanguage(savedLang);
+      } else {
+        const browserLang = navigator.language.toLowerCase().startsWith("th") ? "th" : "en";
+        setLanguage(browserLang);
+        localStorage.setItem("portfolio_lang", browserLang);
+      }
+    }, 10);
+
+    return () => clearTimeout(timer);
+  }, []);
+
   const toggleLanguage = () => {
-    setLanguage((prev) => (prev === "en" ? "th" : "en"));
+    setLanguage((prev) => {
+      const newLang = prev === "en" ? "th" : "en";
+      localStorage.setItem("portfolio_lang", newLang);
+      return newLang;
+    });
   };
 
   return (

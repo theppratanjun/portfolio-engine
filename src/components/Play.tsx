@@ -39,7 +39,7 @@ export default function Play() {
   useEffect(() => {
     const checkAuth = () => {
       setIsLoggedIn(sessionStorage.getItem("vault_session") === "active");
-      fetchLeaderboard(); // 📌 รีเฟรชตารางคะแนนใหม่ทันที (เพื่อลบสถานะ YOU และปุ่ม ✕ ออก)
+      fetchLeaderboard();
     };
     
     const init = setTimeout(() => {
@@ -181,7 +181,7 @@ export default function Play() {
         GAME.running = false;
         
         const scoreEl = document.getElementById("score-readout");
-        if (scoreEl) scoreEl.textContent = `SCORE ${GAME.score} · WAVE ${GAME.wave} · LIVES 0`;
+        if (scoreEl) scoreEl.textContent = `HR SCORE ${GAME.score} · WAVE ${GAME.wave} · LIVES 0`;
         return;
       }
 
@@ -205,7 +205,7 @@ export default function Play() {
 
       const scoreEl = document.getElementById("score-readout");
       if (scoreEl && !gameOverRef.current) {
-        scoreEl.textContent = `SCORE ${GAME.score} · WAVE ${GAME.wave} · LIVES ${GAME.lives}`;
+        scoreEl.textContent = `HR SCORE ${GAME.score} · WAVE ${GAME.wave} · LIVES ${GAME.lives}`;
       }
     }
 
@@ -311,22 +311,32 @@ export default function Play() {
     <section id="play" className="py-20 relative scroll-mt-10">
       <div className="mb-12 max-w-2xl">
         <span className="font-mono text-xs tracking-[0.22em] uppercase text-[var(--accent)] font-medium inline-flex items-center gap-2 before:content-[''] before:w-4 before:h-[1px] before:bg-[var(--accent)]">
-          {language === "en" ? "runtime · interactive" : "รันไทม์ · อินเทอร์แอกทีฟ"}
+          {language === "en" ? "runtime · interactive" : "ประมวลผลสด · ตอบสนองผู้ใช้"}
         </span>
-        <h2 className="text-4xl md:text-5xl font-bold tracking-tight mt-4 mb-3 leading-[1.05]">
-          {language === "en" ? "Play it. The code is the résumé." : "ทดลองเล่น โค้ดนี้คือเรซูเม่ของผม"}
+        
+        {/* 📌 แก้ไข Typography: ปรับขนาดและบังคับ inline-block ไม่ให้ตัดคำกลางประโยค */}
+        <h2 className={`font-bold mt-4 mb-3 ${language === "en" ? "text-4xl md:text-5xl tracking-tight leading-[1.05]" : "text-[1.65rem] sm:text-3xl md:text-4xl tracking-normal leading-[1.4]"}`}>
+          {language === "en" ? (
+            <>The Recruiter&apos;s Lounge <br /> &quot; HR Chill Zone &quot;</>
+          ) : (
+            <>
+              <span className="inline-block">ห้องรับรองสำหรับผู้สรรหาบุคลากร</span> <br /> 
+              <span className="inline-block">&quot; โซนผ่อนคลายสำหรับ HR &quot;</span>
+            </>
+          )}
         </h2>
-        <p className="text-[var(--text-dim)] text-[1rem]">
+        
+        <p className="text-[var(--text-dim)] text-[1rem] mt-2">
           {language === "en"
-            ? <>A live mini-game built with native JavaScript. Secure your high score on the global HR Leaderboard below (requires authentication to prevent tampering).</>
-            : <>มินิเกมที่เขียนด้วย JavaScript ล้วน คุณสามารถบันทึกสถิติของคุณลงใน HR Leaderboard ด้านล่างได้ (ต้องเข้าสู่ระบบเพื่อป้องกันการแก้ไขข้อมูล)</>
+            ? <>Let&apos;s play! A fun, relaxing mini-game for HR made with JavaScript. Save your high score on the global HR leaderboard below (requires login to keep the scores fair).</>
+            : <>มาลองเล่นกัน! เกมผ่อนคลายเล็กๆเพื่อ HR ที่สร้างด้วย JavaScript สามารถบันทึกคะแนนสูงสุดของคุณบนตารางอันดับ HR ทั่วโลกได้ที่ด้านล่างนี้ (จำเป็นต้องเข้าสู่ระบบเพื่อป้องกันการโกงคะแนน)</>
           }
         </p>
       </div>
 
       <div className="border border-[var(--edge)] rounded-md overflow-hidden bg-[var(--bg-panel)] shadow-xl relative">
         <div className="flex gap-[2px] px-2 bg-[var(--bg-panel-2)] border-b border-[var(--edge)] font-mono text-xs">
-          <span className="py-3 px-4 text-[var(--text)] border-b-2 border-[var(--accent)] cursor-default">Game</span>
+          <span className="py-3 px-4 text-[var(--text)] border-b-2 border-[var(--accent)] cursor-default">🎯 Choose Me 🔫</span>
           <span className="flex-1"></span>
           <span className="py-3 px-2 text-[var(--good)]">{fps} fps</span>
         </div>
