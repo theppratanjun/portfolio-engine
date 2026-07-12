@@ -1,21 +1,63 @@
+// src/components/Play.tsx
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useLanguage } from "@/context/LanguageContext";
 
 type Bullet = { x: number; y: number; vy: number };
 type Enemy = { x: number; y: number; w: number; h: number; vy: number; vx: number; hp: number };
 type Particle = { x: number; y: number; vx: number; vy: number; life: number; c: string };
 
+type LeaderboardEntry = { id: string; playerName: string; score: number; isMe: boolean };
+
 export default function Play() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [fps, setFps] = useState(60);
   const { language } = useLanguage();
 
+  const [gameKey, setGameKey] = useState(0); 
+  const [isGameOver, setIsGameOver] = useState(false);
+  const [finalScore, setFinalScore] = useState(0);
+  const gameOverRef = useRef(false); 
+
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [playerName, setPlayerName] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [leaders, setLeaders] = useState<LeaderboardEntry[]>([]);
+
+  const fetchLeaderboard = useCallback(async () => {
+    try {
+      const res = await fetch('/api/leaderboard');
+      if (res.ok) {
+        const data = await res.json();
+        setLeaders(data);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  useEffect(() => {
+    const checkAuth = () => {
+      setIsLoggedIn(sessionStorage.getItem("vault_session") === "active");
+      fetchLeaderboard(); // 📌 รีเฟรชตารางคะแนนใหม่ทันที (เพื่อลบสถานะ YOU และปุ่ม ✕ ออก)
+    };
+    
+    const init = setTimeout(() => {
+      checkAuth();
+    }, 0);
+
+    window.addEventListener("authStateChanged", checkAuth);
+    
+    return () => {
+      clearTimeout(init);
+      window.removeEventListener("authStateChanged", checkAuth);
+    };
+  }, [fetchLeaderboard]);
+
   useEffect(() => {
     const cv = canvasRef.current;
-    if (!cv) return;
-    const ctx = cv.getContext("2d");
-    if (!ctx) return;
+    const ctx = cv?.getContext("2d");
+    if (!cv || !ctx) return;
 
     const W = cv.width;
     const H = cv.height;
@@ -45,8 +87,7 @@ export default function Play() {
         GAME.enemies.push({
           x: 80 + Math.random() * (W - 160),
           y: -40 - Math.random() * 240,
-          w: 34,
-          h: 30,
+          w: 34, h: 30,
           vy: 0.7 + Math.random() * 0.6 + GAME.wave * 0.12,
           vx: (Math.random() - 0.5) * 1.4,
           hp: 1,
@@ -56,16 +97,13 @@ export default function Play() {
     spawnWave();
 
     function rect(x: number, y: number, w: number, h: number, c: string) {
-      if (!ctx) return;
-      ctx.fillStyle = c;
-      ctx.fillRect(x - w / 2, y - h / 2, w, h);
+      ctx!.fillStyle = c;
+      ctx!.fillRect(x - w / 2, y - h / 2, w, h);
     }
 
     function burst(x: number, y: number, c: string) {
       for (let i = 0; i < 10; i++) {
-        GAME.particles.push({
-          x, y, vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6, life: 1, c,
-        });
+        GAME.particles.push({ x, y, vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6, life: 1, c });
       }
     }
 
@@ -83,15 +121,14 @@ export default function Play() {
       GAME.keys[e.key.toLowerCase()] = true;
       if (e.key.toLowerCase() === "p") GAME.paused = !GAME.paused;
     };
-    const handleKeyUp = (e: KeyboardEvent) => {
-      GAME.keys[e.key.toLowerCase()] = false;
-    };
+    const handleKeyUp = (e: KeyboardEvent) => GAME.keys[e.key.toLowerCase()] = false;
 
     const handlePointerMove = (e: PointerEvent) => {
       const r = cv.getBoundingClientRect();
       pointerX = ((e.clientX - r.left) / r.width) * W;
     };
     const handlePointerDown = (e: PointerEvent) => {
+      if (gameOverRef.current) return;
       const r = cv.getBoundingClientRect();
       pointerX = ((e.clientX - r.left) / r.width) * W;
       shoot();
@@ -102,11 +139,7 @@ export default function Play() {
     cv.addEventListener("pointermove", handlePointerMove);
     cv.addEventListener("pointerdown", handlePointerDown);
 
-    // 📌 ดักฟัง Event "konamiActivated" ที่ถูกปล่อยมาจาก Footer
-    const handleKonamiEvent = () => {
-      GAME.lives += 1; // เพิ่มชีวิต 1 ดวงทันที
-      burst(GAME.player.x, GAME.player.y - 30, ACC()); // ปล่อยเอฟเฟกต์แสงตรงตัวยานโชว์ว่าได้บัฟ
-    };
+    const handleKonamiEvent = () => { GAME.lives += 1; burst(GAME.player.x, GAME.player.y - 30, ACC()); };
     window.addEventListener("konamiActivated", handleKonamiEvent);
 
     let last = performance.now();
@@ -116,16 +149,13 @@ export default function Play() {
     let animationFrameId: number;
 
     function update() {
-      if (GAME.paused) return;
+      if (GAME.paused || gameOverRef.current) return;
       const p = GAME.player;
 
       if (GAME.keys["arrowleft"] || GAME.keys["a"]) p.x -= p.speed;
       if (GAME.keys["arrowright"] || GAME.keys["d"]) p.x += p.speed;
       
-      if (pointerX !== null) {
-        p.x += (pointerX - p.x) * 0.18;
-      }
-
+      if (pointerX !== null) p.x += (pointerX - p.x) * 0.18;
       p.x = Math.max(p.w / 2, Math.min(W - p.w / 2, p.x));
 
       if (GAME.keys[" "]) shoot();
@@ -144,6 +174,17 @@ export default function Play() {
         }
       });
 
+      if (GAME.lives <= 0 && !gameOverRef.current) {
+        gameOverRef.current = true;
+        setFinalScore(GAME.score);
+        setIsGameOver(true);
+        GAME.running = false;
+        
+        const scoreEl = document.getElementById("score-readout");
+        if (scoreEl) scoreEl.textContent = `SCORE ${GAME.score} · WAVE ${GAME.wave} · LIVES 0`;
+        return;
+      }
+
       GAME.bullets.forEach((b) => {
         GAME.enemies.forEach((en) => {
           if (Math.abs(b.x - en.x) < en.w / 2 && Math.abs(b.y - en.y) < en.h / 2) {
@@ -157,20 +198,13 @@ export default function Play() {
       GAME.enemies = GAME.enemies.filter((en) => en.hp > 0);
       GAME.bullets = GAME.bullets.filter((b) => b.y > -900);
 
-      if (GAME.enemies.length === 0) {
-        GAME.wave++;
-        spawnWave();
-      }
+      if (GAME.enemies.length === 0) { GAME.wave++; spawnWave(); }
 
-      GAME.particles.forEach((pt) => {
-        pt.x += pt.vx;
-        pt.y += pt.vy;
-        pt.life -= 0.04;
-      });
+      GAME.particles.forEach((pt) => { pt.x += pt.vx; pt.y += pt.vy; pt.life -= 0.04; });
       GAME.particles = GAME.particles.filter((pt) => pt.life > 0);
 
       const scoreEl = document.getElementById("score-readout");
-      if (scoreEl) {
+      if (scoreEl && !gameOverRef.current) {
         scoreEl.textContent = `SCORE ${GAME.score} · WAVE ${GAME.wave} · LIVES ${GAME.lives}`;
       }
     }
@@ -185,7 +219,6 @@ export default function Play() {
       for (let y = 0; y < H; y += 48) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
 
       GAME.particles.forEach((pt) => { ctx.globalAlpha = pt.life; rect(pt.x, pt.y, 5, 5, pt.c); ctx.globalAlpha = 1; });
-      
       GAME.bullets.forEach((b) => rect(b.x, b.y, 4, 14, CY()));
       
       GAME.enemies.forEach((en) => {
@@ -195,12 +228,7 @@ export default function Play() {
 
       const p = GAME.player;
       ctx.fillStyle = ACC();
-      ctx.beginPath();
-      ctx.moveTo(p.x, p.y - p.h);
-      ctx.lineTo(p.x - p.w / 2, p.y + p.h);
-      ctx.lineTo(p.x + p.w / 2, p.y + p.h);
-      ctx.closePath();
-      ctx.fill();
+      ctx.beginPath(); ctx.moveTo(p.x, p.y - p.h); ctx.lineTo(p.x - p.w / 2, p.y + p.h); ctx.lineTo(p.x + p.w / 2, p.y + p.h); ctx.closePath(); ctx.fill();
       
       ctx.fillStyle = CY();
       rect(p.x, p.y + 4, 8, 8, CY());
@@ -209,16 +237,6 @@ export default function Play() {
         ctx.fillStyle = "rgba(0,0,0,0.55)"; ctx.fillRect(0, 0, W, H);
         ctx.fillStyle = "#fff"; ctx.font = "600 38px JetBrains Mono, monospace"; ctx.textAlign = "center";
         ctx.fillText("|| PAUSED", W / 2, H / 2);
-        ctx.font = "400 16px JetBrains Mono, monospace"; ctx.fillStyle = "#8b94a3";
-        ctx.fillText("press P to resume", W / 2, H / 2 + 34);
-      }
-      
-      if (GAME.lives <= 0) {
-        ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(0, 0, W, H);
-        ctx.fillStyle = ACC(); ctx.font = "700 44px JetBrains Mono, monospace"; ctx.textAlign = "center";
-        ctx.fillText("GAME OVER", W / 2, H / 2 - 10);
-        ctx.fillStyle = "#e6e9ef"; ctx.font = "400 16px JetBrains Mono, monospace";
-        ctx.fillText(`score ${GAME.score} — click to restart`, W / 2, H / 2 + 28);
       }
     }
 
@@ -230,24 +248,10 @@ export default function Play() {
       acc += dt;
       fpsT += dt;
 
-      if (fpsT > 500) {
-        setFps(Math.round(1000 / (dt || 16)));
-        fpsT = 0;
-      }
-
-      while (acc >= STEP) {
-        update();
-        acc -= STEP;
-      }
+      if (fpsT > 500) { setFps(Math.round(1000 / (dt || 16))); fpsT = 0; }
+      while (acc >= STEP) { update(); acc -= STEP; }
       render();
     }
-
-    const handleClick = () => {
-      if (GAME.lives <= 0) {
-        GAME.lives = 3; GAME.score = 0; GAME.wave = 1; GAME.enemies = []; GAME.bullets = []; spawnWave();
-      }
-    };
-    cv.addEventListener("click", handleClick);
 
     animationFrameId = requestAnimationFrame(loop);
 
@@ -258,11 +262,50 @@ export default function Play() {
       window.removeEventListener("keyup", handleKeyUp);
       cv.removeEventListener("pointermove", handlePointerMove);
       cv.removeEventListener("pointerdown", handlePointerDown);
-      cv.removeEventListener("click", handleClick);
-      // 📌 ถอดหูฟังออกเมื่อสลับหน้าเพื่อไม่ให้เว็บพัง
       window.removeEventListener("konamiActivated", handleKonamiEvent);
     };
-  }, []);
+  }, [gameKey]);
+
+  const handleRestart = () => {
+    setIsGameOver(false);
+    gameOverRef.current = false;
+    setGameKey(prev => prev + 1); 
+  };
+
+  const handleSaveScore = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isLoggedIn) {
+      window.dispatchEvent(new Event("openVaultAuthModal"));
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const res = await fetch("/api/leaderboard", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerName: playerName || "HR_Guest", score: finalScore })
+      });
+      if (res.ok) {
+        await fetchLeaderboard(); 
+        handleRestart(); 
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteScore = async () => {
+    if (!confirm(language === "en" ? "Are you sure you want to delete your score?" : "แน่ใจหรือไม่ว่าต้องการลบสถิติของคุณ?")) return;
+    try {
+      const res = await fetch("/api/leaderboard", { method: "DELETE" });
+      if (res.ok) fetchLeaderboard();
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   return (
     <section id="play" className="py-20 relative scroll-mt-10">
@@ -275,40 +318,133 @@ export default function Play() {
         </h2>
         <p className="text-[var(--text-dim)] text-[1rem]">
           {language === "en"
-            ? <>A live mini-game running in a canvas viewport styled like an engine editor. This is built with native JS to load instantly, but the slot below is wired for a real <b>Unity WebGL</b> build when you want the full experience.</>
-            : <>มินิเกมที่รันบน Viewport สไตล์เอนจินเกม เขียนด้วย JavaScript เพื่อให้โหลดได้ทันที และเตรียม Slot ด้านล่างไว้สำหรับฝัง <b>Unity WebGL</b> ของจริง เมื่อคุณต้องการประสบการณ์แบบเต็มรูปแบบ</>
+            ? <>A live mini-game built with native JavaScript. Secure your high score on the global HR Leaderboard below (requires authentication to prevent tampering).</>
+            : <>มินิเกมที่เขียนด้วย JavaScript ล้วน คุณสามารถบันทึกสถิติของคุณลงใน HR Leaderboard ด้านล่างได้ (ต้องเข้าสู่ระบบเพื่อป้องกันการแก้ไขข้อมูล)</>
           }
         </p>
       </div>
 
-      <div className="border border-[var(--edge)] rounded-md overflow-hidden bg-[var(--bg-panel)] shadow-xl">
+      <div className="border border-[var(--edge)] rounded-md overflow-hidden bg-[var(--bg-panel)] shadow-xl relative">
         <div className="flex gap-[2px] px-2 bg-[var(--bg-panel-2)] border-b border-[var(--edge)] font-mono text-xs">
           <span className="py-3 px-4 text-[var(--text)] border-b-2 border-[var(--accent)] cursor-default">Game</span>
-          <span className="py-3 px-4 text-[var(--text-dim)] border-b-2 border-transparent cursor-default">Scene</span>
-          <span className="py-3 px-4 text-[var(--text-dim)] border-b-2 border-transparent cursor-default">Profiler</span>
           <span className="flex-1"></span>
           <span className="py-3 px-2 text-[var(--good)]">{fps} fps</span>
         </div>
         
-        <canvas ref={canvasRef} width={1280} height={720} className="block w-full h-auto aspect-video bg-[#070809] cursor-crosshair touch-none"></canvas>
+        <div className="relative">
+          <canvas ref={canvasRef} width={1280} height={720} className="block w-full h-auto aspect-video bg-[#070809] cursor-crosshair touch-none"></canvas>
+          
+          {isGameOver && (
+            <div className="absolute inset-0 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center p-6 z-10 animate-fade-in">
+              <h3 className="text-5xl font-mono font-bold text-[var(--accent)] mb-2 tracking-widest">GAME OVER</h3>
+              <p className="font-mono text-xl text-white mb-6">FINAL SCORE: <span className="text-[var(--good)]">{finalScore}</span></p>
+              
+              <div className="bg-[var(--bg-panel)] border border-[var(--edge)] p-6 rounded-lg max-w-sm w-full text-center shadow-2xl">
+                <p className="text-[0.9rem] text-[var(--text-dim)] mb-4">
+                  {language === "en" ? "Would you like to show off your score to other HRs?" : "อยากอวดสถิติให้ HR ท่านอื่นเห็นไหมครับ?"}
+                </p>
+                
+                <form onSubmit={handleSaveScore} className="flex flex-col gap-3">
+                  <input 
+                    type="text" 
+                    placeholder={language === "en" ? "Display Name (e.g. HR_Recruiter)" : "นามแฝง (เช่น HR_Google)"}
+                    value={playerName}
+                    onChange={(e) => setPlayerName(e.target.value)}
+                    maxLength={15}
+                    className="w-full bg-[var(--bg)] border border-[var(--edge)] rounded py-2 px-3 text-center font-mono text-sm focus:outline-none focus:border-[var(--accent)]"
+                  />
+                  <div className="flex gap-2">
+                    <button 
+                      type="submit" 
+                      disabled={isSubmitting}
+                      className="flex-1 bg-[var(--accent)] text-white font-mono text-[0.8rem] py-2 rounded hover:brightness-110 transition-all"
+                    >
+                      {isSubmitting ? "..." : (language === "en" ? "SAVE SCORE" : "บันทึกคะแนน")}
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={handleRestart}
+                      className="flex-1 bg-[var(--bg-panel-2)] text-[var(--text)] border border-[var(--edge)] font-mono text-[0.8rem] py-2 rounded hover:border-[var(--text-dim)] transition-all"
+                    >
+                      {language === "en" ? "RESTART" : "เล่นใหม่"}
+                    </button>
+                  </div>
+                </form>
+
+                {!isLoggedIn && (
+                  <p className="font-mono text-[0.65rem] text-[var(--accent-3)] mt-4">
+                    * {language === "en" ? "Requires login (Modal will open)" : "ต้องเข้าสู่ระบบก่อน (หน้าต่างจะเด้งขึ้นมา)"}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="flex items-center justify-between gap-3 flex-wrap py-3 px-4 bg-[var(--bg-panel-2)] border-t border-[var(--edge)] font-mono text-xs text-[var(--text-dim)]">
           <span>
             Move <kbd className="bg-[var(--bg)] border border-[var(--edge)] border-b-2 rounded-[3px] py-[1px] px-[7px] text-[var(--text)] mx-[2px]">A</kbd>
             <kbd className="bg-[var(--bg)] border border-[var(--edge)] border-b-2 rounded-[3px] py-[1px] px-[7px] text-[var(--text)] mx-[2px]">D</kbd> 
             <kbd className="bg-[var(--bg)] border border-[var(--edge)] border-b-2 rounded-[3px] py-[1px] px-[7px] text-[var(--text)] ml-2 mr-[2px]">Mouse</kbd> 
-            · Shoot <kbd className="bg-[var(--bg)] border border-[var(--edge)] border-b-2 rounded-[3px] py-[1px] px-[7px] text-[var(--text)] mx-[2px]">Click</kbd> 
-            · Pause <kbd className="bg-[var(--bg)] border border-[var(--edge)] border-b-2 rounded-[3px] py-[1px] px-[7px] text-[var(--text)] mx-[2px]">P</kbd>
+            · Shoot <kbd className="bg-[var(--bg)] border border-[var(--edge)] border-b-2 rounded-[3px] py-[1px] px-[7px] text-[var(--text)] mx-[2px]">Click</kbd>
           </span>
-          <span id="score-readout">SCORE 0 · WAVE 1 · LIVES 3</span>
+          <span id="score-readout">HR SCORE 0 · WAVE 1 · LIVES 3</span>
         </div>
       </div>
 
-      <div className="mt-5 p-4 md:p-5 border border-dashed border-[var(--edge)] rounded-md font-mono text-sm text-[var(--text-dim)] bg-[var(--bg-panel)] leading-relaxed">
-        {language === "en"
-          ? <><b className="text-[var(--accent-2)]">{"// UNITY_WEBGL_SLOT"}</b> — Replace the canvas above with your real Unity build. Drop your <code>Build/</code> folder exported from Unity 2022.3 LTS into <code>/public/unity/</code>, export with <b>Brotli</b> compression, and mount with <code>react-unity-webgl</code>.</>
-          : <><b className="text-[var(--accent-2)]">{"// UNITY_WEBGL_SLOT"}</b> — เปลี่ยน Canvas ด้านบนให้เป็นโปรเจกต์ Unity ของจริงของคุณ นำโฟลเดอร์ <code>Build/</code> ที่ Export จาก Unity 2022.3 LTS มาวางใน <code>/public/unity/</code> (ใช้การบีบอัด <b>Brotli</b>) แล้วโหลดผ่าน <code>react-unity-webgl</code></>
-        }
+      <div className="mt-8 border border-[var(--edge)] rounded-md overflow-hidden bg-[var(--bg-panel)] shadow-md">
+        <div className="bg-[var(--bg-panel-2)] py-3 px-5 border-b border-[var(--edge)] flex justify-between items-center">
+          <h3 className="font-mono font-bold text-[0.9rem] text-[var(--text)]">
+            🏆 HR GLOBAL LEADERBOARD
+          </h3>
+          <span className="font-mono text-[0.7rem] text-[var(--text-dim)]">
+            {language === "en" ? "Top 10 High Scores" : "10 อันดับสถิติสูงสุด"}
+          </span>
+        </div>
+        
+        <div className="overflow-x-auto">
+          <table className="w-full text-left font-mono text-[0.85rem]">
+            <thead className="text-[var(--text-faint)] bg-[var(--bg)]">
+              <tr>
+                <th className="py-3 px-5 font-normal">RANK</th>
+                <th className="py-3 px-5 font-normal">NAME</th>
+                <th className="py-3 px-5 font-normal">SCORE</th>
+                <th className="py-3 px-5 font-normal text-right">ACTION</th>
+              </tr>
+            </thead>
+            <tbody>
+              {leaders.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="py-8 text-center text-[var(--text-dim)] italic">
+                    {language === "en" ? "No scores recorded yet. Be the first!" : "ยังไม่มีบันทึกสถิติ มาเป็นคนแรกกันเถอะ!"}
+                  </td>
+                </tr>
+              ) : (
+                leaders.map((leader, index) => (
+                  <tr key={leader.id} className={`border-t border-[var(--edge)] transition-colors hover:bg-[var(--bg-panel-2)] ${leader.isMe ? "bg-[rgba(33,230,193,0.05)]" : ""}`}>
+                    <td className="py-3 px-5 text-[var(--text-dim)]">#{index + 1}</td>
+                    <td className="py-3 px-5 font-bold text-[var(--text)]">
+                      {leader.playerName} {leader.isMe && <span className="text-[0.6rem] bg-[var(--accent-2)] text-[#04201b] px-1.5 py-0.5 rounded ml-2">YOU</span>}
+                    </td>
+                    <td className="py-3 px-5 text-[var(--good)]">{leader.score.toLocaleString()}</td>
+                    <td className="py-3 px-5 text-right">
+                      {leader.isMe ? (
+                        <button 
+                          onClick={handleDeleteScore}
+                          className="text-[0.7rem] text-[var(--danger)] hover:underline opacity-80 hover:opacity-100"
+                        >
+                          [ ✕ {language === "en" ? "Delete" : "ลบ"} ]
+                        </button>
+                      ) : (
+                        <span className="text-[var(--text-faint)]">-</span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
   );

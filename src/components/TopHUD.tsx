@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-// 📌 เอา Link ของ Next.js ออก เพราะเราจะจัดการ Scroll เอง
 import { useLanguage } from "@/context/LanguageContext";
 import { useTheme } from "@/context/ThemeContext";
 
 export default function TopHUD() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  // 📌 เพิ่ม State ตรวจจับการล็อกอิน
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   
   const { language, toggleLanguage } = useLanguage();
   const { theme, setTheme } = useTheme();
@@ -19,23 +21,36 @@ export default function TopHUD() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // 📌 ดักฟัง Event ว่ามีการล็อกอินอยู่หรือไม่ เพื่ออัปเดตปุ่มบน HUD แบบเรียลไทม์
+  useEffect(() => {
+    const checkAuth = () => {
+      setIsLoggedIn(sessionStorage.getItem("vault_session") === "active");
+    };
+    checkAuth();
+    window.addEventListener("authStateChanged", checkAuth);
+    return () => window.removeEventListener("authStateChanged", checkAuth);
+  }, []);
+
   const toggleTheme = () => {
     setTheme(theme === "light" ? "dark" : "light");
   };
 
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    sessionStorage.removeItem("vault_session");
+    setIsLoggedIn(false);
+    window.dispatchEvent(new Event("authStateChanged"));
+  };
+
   const navItems = ["play", "work", "skills", "console", "vault", "contact"];
 
-  // 📌 ฟังก์ชันจัดการคลิกเมนู บังคับเลื่อนหน้าจอ 100% ทุกครั้งที่กด
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, targetId: string) => {
     e.preventDefault();
-    setIsMobileMenuOpen(false); // ปิดเมนูมือถือ (ถ้าเปิดอยู่)
+    setIsMobileMenuOpen(false);
 
     const element = document.getElementById(targetId);
     if (element) {
-      // สั่งให้เลื่อนไปหาส่วนนั้นแบบนุ่มนวล
       element.scrollIntoView({ behavior: "smooth" });
-      
-      // อัปเดต URL ด้านบนด้วย เพื่อให้ถูกต้องตามหลัก (แต่ไม่ทำให้หน้ากระตุก)
       window.history.pushState(null, "", `#${targetId}`);
     }
   };
@@ -57,7 +72,7 @@ export default function TopHUD() {
               <a 
                 key={item} 
                 href={`#${item}`} 
-                onClick={(e) => handleNavClick(e, item)} // 📌 ใช้งานฟังก์ชันใหม่
+                onClick={(e) => handleNavClick(e, item)} 
                 className="font-mono text-[0.78rem] text-[var(--text-dim)] py-2 px-3 rounded-[var(--radius)] transition-all tracking-wider border-b-2 border-transparent hover:text-[var(--text)] hover:bg-[var(--bg-panel-2)] hover:outline hover:outline-1 hover:outline-[var(--edge)] cursor-pointer"
               >
                 {"// " + item}
@@ -74,6 +89,26 @@ export default function TopHUD() {
             <button onClick={toggleTheme} className="font-mono text-[0.72rem] cursor-pointer bg-[var(--bg-panel-2)] border border-[var(--edge)] text-[var(--text-dim)] py-[7px] px-[10px] rounded-[var(--radius)] transition-all tracking-wider hover:text-[var(--accent)] hover:border-[var(--accent)]">
               {theme === "light" ? "[ LIGHT ]" : "[ DARK ]"}
             </button>
+
+            {/* 📌 ถ้าระบบล็อกอินผ่าน จะโชว์ปุ่มจัดการ User ที่มุมขวาบนสุด (เหมือนเว็บแอปของจริง) */}
+            {isLoggedIn && (
+              <div className="flex items-center gap-1 ml-2 pl-3 border-l border-[var(--edge)]">
+                <button 
+                  onClick={() => window.dispatchEvent(new Event("openAccountSettings"))}
+                  className="font-mono text-[0.72rem] cursor-pointer bg-[var(--bg-panel)] border border-[var(--edge)] text-[var(--text-dim)] py-[7px] px-[10px] rounded-[var(--radius)] transition-all hover:text-[var(--text)] hover:border-[var(--text-dim)]"
+                  title={language === "en" ? "Account Settings" : "ตั้งค่าบัญชี"}
+                >
+                  ⚙️
+                </button>
+                <button 
+                  onClick={handleLogout}
+                  className="font-mono text-[0.72rem] cursor-pointer bg-[var(--bg-panel)] border border-[var(--edge)] text-[var(--danger)] py-[7px] px-[10px] rounded-[var(--radius)] transition-all hover:bg-[var(--danger)] hover:text-white"
+                  title={language === "en" ? "Log Out" : "ออกจากระบบ"}
+                >
+                  ⏻
+                </button>
+              </div>
+            )}
           </div>
 
           <button className="md:hidden flex flex-col justify-center items-center w-8 h-8 space-y-1.5 z-50 cursor-pointer bg-transparent border-none" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
@@ -89,7 +124,7 @@ export default function TopHUD() {
           <a 
             key={item} 
             href={`#${item}`} 
-            onClick={(e) => handleNavClick(e, item)} // 📌 ใช้งานฟังก์ชันใหม่สำหรับมือถือ
+            onClick={(e) => handleNavClick(e, item)} 
             className="text-[0.9rem] text-[var(--text)] py-[13px] px-[14px] border-b border-[var(--bg-panel)] flex items-center active:bg-[var(--bg-panel-2)] cursor-pointer"
           >
             <span className="text-[var(--text-faint)] mr-3">0{index + 1}</span>{"// " + item}
@@ -105,6 +140,18 @@ export default function TopHUD() {
             {theme === "light" ? "[ LIGHT ]" : "[ DARK ]"}
           </button>
         </div>
+        
+        {/* 📌 เมนูมือถือ: แสดงปุ่มจัดการระบบถ้ายืนยันตัวตนแล้ว */}
+        {isLoggedIn && (
+          <div className="flex gap-2 pt-2 px-[14px]">
+            <button onClick={() => { window.dispatchEvent(new Event("openAccountSettings")); setIsMobileMenuOpen(false); }} className="flex-1 font-mono text-[0.78rem] cursor-pointer bg-[var(--bg-panel)] border border-[var(--edge)] text-[var(--text)] py-[10px] rounded-[var(--radius)] transition-all active:border-[var(--text-dim)]">
+              ⚙️ {language === "en" ? "SETTINGS" : "ตั้งค่าบัญชี"}
+            </button>
+            <button onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }} className="flex-1 font-mono text-[0.78rem] cursor-pointer bg-[var(--danger)] border border-[var(--danger)] text-white py-[10px] rounded-[var(--radius)] transition-all active:brightness-90">
+              ⏻ {language === "en" ? "LOG OUT" : "ออกจากระบบ"}
+            </button>
+          </div>
+        )}
       </div>
     </>
   );

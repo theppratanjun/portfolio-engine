@@ -12,12 +12,12 @@ export default function Console() {
   
   const [history, setHistory] = useState<HistoryLine[]>([]);
   const [inputValue, setInputValue] = useState("");
+  // 📌 สถานะล็อกอินเฉพาะใน Console (ไม่เกี่ยวกับ Vault)
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
 
-  // 📌 เปลี่ยนมาอ้างอิง "ตัวกล่อง" แทนการอ้างอิง "บรรทัดล่างสุด"
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   
@@ -51,7 +51,6 @@ export default function Console() {
     return () => clearTimeout(timer);
   }, []);
 
-  // 📌 แก้ไขจุดนี้: สั่งให้ Scroll เฉพาะกล่องด้านใน ไม่กวนหน้าเว็บหลัก
   useEffect(() => {
     if (!isInitialized.current) {
       if (history.length > 0) {
@@ -67,14 +66,15 @@ export default function Console() {
     }
   }, [history]);
 
+  // 📌 Timeout เคลียร์สถานะเฉพาะใน Console
   useEffect(() => {
     if (!isLoggedIn) return;
 
     const timer = setTimeout(() => {
-      setIsLoggedIn(false);
+      setIsLoggedIn(false); 
       print(
         <span className="text-[#ff2e88]">
-          [SECURITY NOTICE] Session timed out due to 30s of inactivity. Logged out securely.
+          [SECURITY NOTICE] Local session timed out due to 30s of inactivity.
         </span>
       );
     }, timeoutDuration);
@@ -99,8 +99,9 @@ export default function Console() {
     );
 
     const parts = raw.split(" ");
-    const cmd = parts[0].toLowerCase();
-    const arg = parts[1]?.toLowerCase(); 
+    const cmd = parts[0]?.toLowerCase();
+    const argRaw = parts[1]; 
+    const argLower = argRaw?.toLowerCase(); 
 
     switch (cmd) {
       case "help":
@@ -123,44 +124,36 @@ export default function Console() {
         );
         break;
 
+      // 📌 ระบบ Login ของเล่นเฉพาะหน้าต่างนี้ (ตรวจแค่คำว่า admin123)
       case "login":
-        const credentials = arg; // ดึงรหัสผ่านที่พิมพ์ต่อท้ายมาใช้
+        const credentials = argRaw;
         
         if (!credentials) {
           print(<span className="text-[#ff2e88]">Usage: login [password]</span>);
           break;
         }
 
-        print(<span className="text-[#8b94a3]">Authenticating with secure gateway...</span>);
+        print(<span className="text-[#8b94a3]">Authenticating local console...</span>);
         
-        // 📌 ยิง API ไปหาฐานข้อมูล
-        fetch("/api/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "admin", password: credentials })
-        })
-        .then(async (res) => {
-          const data = await res.json();
-          if (res.ok) {
+        setTimeout(() => {
+          if (credentials === "admin123") {
             setIsLoggedIn(true);
             setLastActivity(Date.now());
-            print(<span className="text-[#3ddc84] mt-1">Access Granted. Security clearance level: ADMIN.</span>);
-            print(<span className="text-[#21e6c1]">Type &apos;help&apos; to see available secure commands.</span>);
+            print(<span className="text-[#3ddc84] mt-1">Access Granted. Local console unlocked.</span>);
+            print(<span className="text-[#21e6c1]">Type &apos;help&apos; to see available commands.</span>);
           } else {
-            // ถ้ารหัสผิด
-            print(<span className="text-[#ff5f57] mt-1">Access Denied: {data.error}</span>);
+            print(<span className="text-[#ff5f57] mt-1">Access Denied: Invalid credentials.</span>);
           }
-        })
-        .catch(() => {
-          print(<span className="text-[#ff5f57] mt-1">Error: Secure gateway is unreachable.</span>);
-        });
+        }, 400);
         break;
 
+      // 📌 ออกจากระบบเฉพาะหน้าต่างนี้
       case "logout":
         setIsLoggedIn(false);
-        print("Logged out successfully. Cryptographic session destroyed.");
+        print("Logged out successfully. Local session destroyed.");
         break;
 
+      // 📌 ดึง API ของจริงจากหลังบ้าน (เรียกไปที่ /api/system-status)
       case "status":
         if (!isLoggedIn) {
           print(<span className="text-[#ff2e88]">{"Access Denied: Secure connection required. Please 'login' first."}</span>);
@@ -172,14 +165,14 @@ export default function Console() {
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ sessionToken: "secret-valid-token-123" }) // 📌 คีย์ยืนยันตัวตน
+            body: JSON.stringify({ sessionToken: "secret-valid-token-123" }) // 📌 คีย์ยืนยันตัวตนสำหรับ API นี้
           })
           .then((res) => {
             if (!res.ok) throw new Error();
             return res.json();
           })
           .then((data) => {
-            // 📌 เมื่อได้รับข้อมูลจริงจาก Backend ให้นำมาพิมพ์ลงหน้าจอ
+            // 📌 พิมพ์ข้อมูลเซิร์ฟเวอร์ของจริงที่ได้จาก API
             print(
               <>
                 System: <span className="text-[#3ddc84]">{data.status}</span><br />
@@ -190,22 +183,17 @@ export default function Console() {
             );
           })
           .catch(() => {
-            // 📌 ถ้าระบบหลังบ้านล่ม หน้าบ้านต้องไม่พัง (Graceful Degradation)
             print(<span className="text-[#ff2e88]">Error: Failed to fetch secure gateway metrics. API Offline.</span>);
           });
         }
         break;
 
       case "theme":
-        if (arg === "light" || arg === "dark") {
-          setTheme(arg);
-          print(`Theme configuration updated: ${arg === "light" ? "Light" : "Dark"}`);
+        if (argLower === "light" || argLower === "dark") {
+          setTheme(argLower);
+          print(`Theme configuration updated: ${argLower === "light" ? "Light" : "Dark"}`);
         } else {
-          print(
-            <>
-              <span className="text-[#ff2e88]">{"Usage: theme Light , Dark | light , dark"}</span>
-            </>
-          );
+          print(<span className="text-[#ff2e88]">{"Usage: theme light | dark"}</span>);
         }
         break;
 
@@ -273,7 +261,6 @@ export default function Console() {
           </span>
         </div>
 
-        {/* 📌 ผูก ref ไว้ที่กล่องนี้ เพื่อให้มันเลื่อนแค่ข้างใน */}
         <div 
           ref={scrollContainerRef}
           className="p-5 text-[0.85rem] leading-[1.75] h-[300px] overflow-y-auto"

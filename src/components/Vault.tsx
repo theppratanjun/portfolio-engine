@@ -4,23 +4,20 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useLanguage } from "@/context/LanguageContext";
 
+// 📌 1. โครงสร้างข้อมูลสำหรับแสดงหน้าไพ่สาธารณะ (Public Cards)
 const VAULT_PROJECTS = [
   {
     id: "v01",
     title: { en: "Interactive 3D Showreel", th: "ผลงาน 3D อินเทอร์แอกทีฟ" },
     type: "// React Three Fiber · GSAP ScrollTrigger · WebGL",
     desc: {
-      en: ["A scrollytelling 3D experience — a model that assembles and rotates as you scroll, Iron-Man style. Proves I can do interactive/visual/3D on the web, not just CRUD.", "Built with R3F + GSAP ScrollTrigger + Draco-compressed GLB, with a 2D fallback for low-power devices."],
-      th: ["ประสบการณ์ 3D แบบ Scrollytelling — โมเดล 3 มิติที่จะประกอบร่างและหมุนตามการเลื่อนหน้าจอของคุณสไตล์ Iron-Man เพื่อแสดงให้เห็นว่าผมสามารถทำระบบ 3D บนเว็บได้ ไม่ใช่แค่ระบบจัดการฐานข้อมูลทั่วไป", "พัฒนาด้วย R3F + GSAP ScrollTrigger + Draco-compressed GLB พร้อมระบบ 2D สำรองสำหรับอุปกรณ์สเปคต่ำ"]
+      en: ["A scrollytelling 3D experience — a model that assembles and rotates as you scroll, Iron-Man style.", "Built with R3F + GSAP ScrollTrigger + Draco-compressed GLB, with a 2D fallback for low-power devices."],
+      th: ["ประสบการณ์ 3D แบบ Scrollytelling — โมเดล 3 มิติที่จะประกอบร่างและหมุนตามการเลื่อนหน้าจอของคุณสไตล์ Iron-Man", "พัฒนาด้วย R3F + GSAP ScrollTrigger + Draco-compressed GLB พร้อมระบบ 2D สำรองสำหรับอุปกรณ์สเปคต่ำ"]
     },
     stageBig: "🧊",
     stageCap: { 
       en: "[ 3D canvas mounts here — a Blender/SolidWorks model that assembles & rotates on scroll ]", 
       th: "[ พื้นที่สำหรับ 3D Canvas — โมเดลจาก Blender/SolidWorks จะหมุนและประกอบร่างที่นี่ ]" 
-    },
-    notes: {
-      en: "<h3>What this proves</h3><p>Interactive/visual/3D on the web, not just CRUD. The model is exported from Blender as a Draco-compressed GLB and driven by GSAP ScrollTrigger.</p><h3>Why it lives behind login</h3><p>3D is heavy. Keeping it in the vault means the public homepage stays fast (Lighthouse green) while still showing this off to people who care enough to sign in.</p>",
-      th: "<h3>สิ่งที่โปรเจกต์นี้พิสูจน์</h3><p>ทักษะการทำ Interactive/Visual/3D บนเว็บ โมเดลถูก Export จาก Blender ในรูปแบบ Draco-compressed GLB และควบคุมด้วย GSAP ScrollTrigger</p><h3>ทำไมถึงต้องล็อกอินเพื่อดู</h3><p>ระบบ 3D กินทรัพยากรเครื่องสูง การเก็บไว้ในคลังลับช่วยให้หน้าเว็บหลักโหลดได้รวดเร็ว (Lighthouse สีเขียว) แต่ยังคงโชว์ของได้สำหรับผู้ที่สนใจจริงๆ</p>"
     }
   },
   {
@@ -35,28 +32,20 @@ const VAULT_PROJECTS = [
     stageCap: { 
       en: "[ Unity WebGL dev build embeds here — playable, pre-release ]", 
       th: "[ พื้นที่สำหรับฝัง Unity WebGL รุ่นทดสอบ — ทดลองเล่นก่อนปล่อยจริง ]" 
-    },
-    notes: {
-      en: "<h3>What you get</h3><p>An early but playable build of the next game, plus the devlog. Shows gameplay systems, state management, and WebGL optimization in progress.</p><h3>Why gated</h3><p>It is unfinished — gating lets me share work-in-progress with recruiters without shipping it publicly.</p>",
-      th: "<h3>สิ่งที่คุณจะได้เห็น</h3><p>ตัวเกมเวอร์ชันทดสอบที่เล่นได้จริงพร้อมบันทึกการพัฒนา แสดงให้เห็นถึงระบบเกม การจัดการสถานะ และการปรับแต่ง WebGL</p><h3>ทำไมถึงต้องซ่อนไว้</h3><p>เนื่องจากยังสร้างไม่เสร็จ การซ่อนไว้ทำให้ผมสามารถแชร์ความคืบหน้าให้ผู้สัมภาษณ์ดูได้โดยไม่ต้องนำไปเผยแพร่สาธารณะ</p>"
     }
   },
   {
     id: "v03",
     title: { en: "[Experiment / Deep-dive]", th: "[บันทึกการทดลองเชิงลึก]" },
-    type: "// add more anytime — DB-driven",
+    type: "// add more anytime — Modular",
     desc: {
-      en: ["The vault is backed by a database, so I can keep adding hidden projects forever. Each new row automatically shows a teaser card out here on the public page.", "This card is the pattern: preview in public, full thing behind auth."],
-      th: ["คลังข้อมูลนี้เชื่อมต่อกับฐานข้อมูล ผมสามารถเพิ่มโปรเจกต์ลับใหม่ๆ เข้ามาได้ตลอดเวลา ข้อมูลใหม่จะแสดงเป็นกล่องตัวอย่างในหน้านี้อัตโนมัติ", "นี่คือรูปแบบการนำเสนอ: โชว์ตัวอย่างในพื้นที่สาธารณะ และเก็บรายละเอียดตัวเต็มไว้หลังระบบล็อกอิน"]
+      en: ["The vault is backed by a modular architecture, so I can keep adding hidden projects forever.", "This card is the pattern: preview in public, full thing behind auth."],
+      th: ["คลังข้อมูลนี้ทำงานด้วยโครงสร้างแบบ Modular ผมสามารถเพิ่มโปรเจกต์ลับใหม่ๆ เข้ามาได้ตลอดเวลา", "นี่คือรูปแบบการนำเสนอ: โชว์ตัวอย่างในพื้นที่สาธารณะ และเก็บรายละเอียดตัวเต็มไว้หลังระบบล็อกอิน"]
     },
     stageBig: "🧪",
     stageCap: { 
-      en: "[ Each new vault row becomes its own page automatically ]", 
-      th: "[ ข้อมูลใหม่ในฐานข้อมูลจะสร้างหน้าแสดงผลของตัวเองอัตโนมัติ ]" 
-    },
-    notes: {
-      en: "<h3>The pattern</h3><p>The vault is backed by a database. Each row renders a teaser card on the public page and a full protected page here — add projects forever without touching code.</p>",
-      th: "<h3>รูปแบบการทำงาน</h3><p>คลังข้อมูลเชื่อมต่อกับฐานข้อมูล ทุกเรคคอร์ดจะสร้างกล่องตัวอย่างในหน้าสาธารณะและหน้าป้องกันในส่วนนี้ — เพิ่มโปรเจกต์ได้เรื่อยๆ โดยไม่ต้องแก้โค้ด</p>"
+      en: "[ Each new vault row becomes its own Sub-Component automatically ]", 
+      th: "[ ข้อมูลใหม่จะถูกสร้างเป็น Sub-Component ของตัวเองอัตโนมัติ ]" 
     }
   }
 ];
@@ -68,15 +57,13 @@ export default function Vault() {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
 
-  // 📌 State สำหรับฟอร์ม
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState(""); // สำหรับสมัครสมาชิก
+  const [confirmPassword, setConfirmPassword] = useState(""); 
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   
-  // 📌 State สลับโหมด (ล็อกอิน <-> สมัครสมาชิก)
   const [isRegisterMode, setIsRegisterMode] = useState(false);
 
   useEffect(() => {
@@ -92,6 +79,12 @@ export default function Vault() {
     const handleAuthStateChanged = () => {
       const savedSession = sessionStorage.getItem("vault_session");
       setIsUnlocked(savedSession === "active");
+      
+      // ถ้าบัญชีโดนลบ ให้ปิดหน้าต่างทั้งหมดอัตโนมัติ
+      if (savedSession !== "active") {
+        setActiveProjectId(null);
+        setIsAuthOpen(false);
+      }
     };
     window.addEventListener("authStateChanged", handleAuthStateChanged);
     
@@ -124,7 +117,6 @@ export default function Vault() {
       setActiveProjectId(null);
       setIsAuthOpen(false);
     }
-    // เคลียร์ฟอร์ม
     setErrorMsg("");
     setSuccessMsg("");
     setEmail("");
@@ -157,14 +149,12 @@ export default function Vault() {
     else setIsAuthOpen(true);
   };
 
-  // 📌 ฟังก์ชันจัดการทั้ง สมัครสมาชิก และ ล็อกอิน
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setErrorMsg("");
     setSuccessMsg("");
 
-    // เช็ครหัสผ่านให้ตรงกันในโหมดสมัครสมาชิก
     if (isRegisterMode && password !== confirmPassword) {
       setErrorMsg(language === "en" ? "Passwords do not match." : "รหัสผ่านไม่ตรงกัน");
       setIsLoading(false);
@@ -172,26 +162,23 @@ export default function Vault() {
     }
 
     try {
-      // 📌 แยก API ตามโหมด (Login หรือ Register)
       const endpoint = isRegisterMode ? "/api/auth/register" : "/api/auth/login";
       
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: email, password: password }) // ใช้ email เป็น username
+        body: JSON.stringify({ username: email, password: password }) 
       });
 
       const data = await res.json();
 
       if (res.ok) {
         if (isRegisterMode) {
-          // ถ้าสมัครสำเร็จ ให้สลับกลับมาหน้า Login
           setSuccessMsg(language === "en" ? "Account created! Please sign in." : "สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ");
           setIsRegisterMode(false);
           setPassword("");
           setConfirmPassword("");
         } else {
-          // ถ้าล็อกอินสำเร็จ
           setIsUnlocked(true);
           sessionStorage.setItem("vault_session", "active");
           window.dispatchEvent(new Event("authStateChanged"));
@@ -207,9 +194,7 @@ export default function Vault() {
     }
   };
 
-  // 📌 โครงสร้างเตรียมพร้อมสำหรับเชื่อมต่อ Google / GitHub OAuth (Supabase)
   const handleOAuthClick = (provider: string) => {
-    // โค้ดสำหรับอนาคต: await supabase.auth.signInWithOAuth({ provider: 'github' })
     setErrorMsg(
       language === "en" 
         ? `${provider} OAuth integration requires Supabase config. Please use email.` 
@@ -217,7 +202,8 @@ export default function Vault() {
     );
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
     setIsUnlocked(false);
     sessionStorage.removeItem("vault_session");
     window.dispatchEvent(new Event("authStateChanged"));
@@ -254,7 +240,6 @@ export default function Vault() {
             </p>
 
             <form onSubmit={handleAuthSubmit}>
-              {/* 📌 ปุ่ม OAuth สำหรับอนาคต */}
               <div className="flex gap-2.5 mb-4">
                 <button type="button" onClick={() => handleOAuthClick("GitHub")} className="flex-1 bg-[var(--bg-panel-2)] border border-[var(--edge)] text-[var(--text)] rounded-[var(--radius)] p-2.5 font-mono text-[0.78rem] cursor-pointer transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]">
                   ◐ GitHub
@@ -266,7 +251,6 @@ export default function Vault() {
               
               <div className="text-center text-[var(--text-faint)] font-mono text-[0.72rem] my-3.5 relative">— or —</div>
               
-              {/* ข้อความแจ้งเตือน */}
               {errorMsg && (
                 <div className="mb-4 p-2 bg-[rgba(255,95,87,0.1)] border border-[var(--danger)] text-[var(--danger)] text-[0.75rem] font-mono rounded text-center">
                   {errorMsg}
@@ -302,7 +286,6 @@ export default function Vault() {
                 />
               </div>
 
-              {/* 📌 ช่องยืนยันรหัสผ่าน (แสดงเฉพาะตอนสมัครสมาชิก) */}
               {isRegisterMode && (
                 <div className="mb-4">
                   <label className="block font-mono text-[0.72rem] text-[var(--text-dim)] mb-1.5">confirm password</label>
@@ -332,7 +315,6 @@ export default function Vault() {
               </button>
             </form>
 
-            {/* 📌 ปุ่มสลับโหมด Login / Register */}
             <div className="mt-5 text-center font-mono text-[0.75rem]">
               <span className="text-[var(--text-faint)]">
                 {isRegisterMode 
@@ -356,11 +338,12 @@ export default function Vault() {
           </div>
         </div>
 
-        {/* ===================== VAULT DETAIL PAGE ===================== */}
+        {/* ===================== VAULT DETAIL PAGE (Modular Architecture) ===================== */}
         <div 
           className={`fixed inset-0 bg-[var(--bg)] overflow-y-auto transition-all duration-300 ${activeProject ? "opacity-100 pointer-events-auto translate-y-0" : "opacity-0 pointer-events-none translate-y-2.5"}`}
           style={{ zIndex: 99997 }} 
         >
+          {/* 📌 Header ของหน้าต่างย่อย */}
           <div 
             className="sticky top-0 w-full flex items-center justify-between py-4 px-6 bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] backdrop-blur-xl border-b border-[var(--edge)] shadow-sm"
             style={{ zIndex: 99999 }} 
@@ -377,9 +360,15 @@ export default function Vault() {
               {"// vault / "}<b className="text-[var(--accent)]">{activeProject?.id}</b>
             </span>
             
-            <button onClick={handleLogout} className="font-mono text-[0.72rem] cursor-pointer bg-[var(--bg-panel)] border border-[var(--edge)] text-[var(--text-dim)] py-2 px-4 rounded-[var(--radius)] transition-all hover:text-[var(--accent)] hover:border-[var(--accent)]">
-              ⏻ {language === "en" ? "LOG OUT" : "ออกจากระบบ"}
-            </button>
+            {/* 📌 ย้ายปุ่มตั้งค่าบัญชีมาไว้มุมขวาบนคู่กับ Logout */}
+            <div className="flex items-center gap-2">
+              <button onClick={() => window.dispatchEvent(new Event("openAccountSettings"))} className="font-mono text-[0.72rem] cursor-pointer bg-[var(--bg-panel)] border border-[var(--edge)] text-[var(--text-dim)] py-2 px-4 rounded-[var(--radius)] transition-all hover:text-[var(--text)] hover:border-[var(--text-dim)]">
+                ⚙️ {language === "en" ? "SETTINGS" : "ตั้งค่า"}
+              </button>
+              <button onClick={handleLogout} className="font-mono text-[0.72rem] cursor-pointer bg-[var(--bg-panel)] border border-[var(--edge)] text-[var(--text-dim)] py-2 px-4 rounded-[var(--radius)] transition-all hover:text-[var(--accent)] hover:border-[var(--accent)]">
+                ⏻ {language === "en" ? "LOG OUT" : "ออกจากระบบ"}
+              </button>
+            </div>
           </div>
 
           {activeProject && (
@@ -395,10 +384,33 @@ export default function Vault() {
                 <div className="font-mono text-[0.8rem] text-[var(--text-dim)] max-w-[460px]">{activeProject.stageCap[language]}</div>
               </div>
 
-              <div 
-                className="text-[var(--text-dim)] max-w-[680px] leading-relaxed [&>h3]:text-[1.1rem] [&>h3]:text-[var(--text)] [&>h3]:mt-5 [&>h3]:mb-2 [&>p]:mb-4"
-                dangerouslySetInnerHTML={{ __html: activeProject.notes[language] }} 
-              />
+              {/* 📌 2. Dynamic Component Rendering (หัวใจของ Modular) */}
+              <div className="mt-10">
+                {activeProjectId === "v01" && (
+                  <div className="p-8 border border-dashed border-[var(--edge)] rounded bg-[var(--bg-panel-2)] text-center text-[var(--text-dim)] font-mono">
+                    {"// TODO: Import <Interactive3D /> component here"}
+                    <br />
+                    <span className="text-[var(--text-faint)] text-[0.7rem] mt-3 block">src/components/vault-projects/Interactive3D.tsx</span>
+                  </div>
+                )}
+
+                {activeProjectId === "v02" && (
+                  <div className="p-8 border border-dashed border-[var(--edge)] rounded bg-[var(--bg-panel-2)] text-center text-[var(--text-dim)] font-mono">
+                    {"// TODO: Import <WitchGameBuild /> component here"}
+                    <br />
+                    <span className="text-[var(--text-faint)] text-[0.7rem] mt-3 block">src/components/vault-projects/WitchGameBuild.tsx</span>
+                  </div>
+                )}
+
+                {activeProjectId === "v03" && (
+                  <div className="p-8 border border-dashed border-[var(--edge)] rounded bg-[var(--bg-panel-2)] text-center text-[var(--text-dim)] font-mono">
+                    {"// TODO: Import <CoffeeShopApp /> component here"}
+                    <br />
+                    <span className="text-[var(--text-faint)] text-[0.7rem] mt-3 block">src/components/vault-projects/CoffeeShopApp.tsx</span>
+                  </div>
+                )}
+              </div>
+
             </div>
           )}
         </div>
@@ -436,9 +448,14 @@ export default function Vault() {
                   : (isUnlocked ? "ยินดีต้อนรับกลับ · คลิกที่กล่องเพื่อเปิดอ่าน" : "ซ่อนอยู่ 3 โปรเจกต์ · ลงชื่อเข้าใช้เพื่อดูเนื้อหา")}
               </span>
               {isUnlocked && (
-                <button onClick={handleLogout} className="ml-auto font-mono text-[0.72rem] cursor-pointer bg-[var(--bg-panel)] border border-[var(--edge)] text-[var(--text-dim)] py-1.5 px-3 rounded-[var(--radius)] transition-all hover:text-[var(--accent)] hover:border-[var(--accent)]">
-                  ⏻ {language === "en" ? "log out" : "ออกจากระบบ"}
-                </button>
+                <div className="ml-auto flex items-center gap-2">
+                  <button onClick={() => window.dispatchEvent(new Event("openAccountSettings"))} className="font-mono text-[0.72rem] cursor-pointer bg-[var(--bg-panel)] border border-[var(--edge)] text-[var(--text-dim)] py-1.5 px-3 rounded-[var(--radius)] transition-all hover:text-[var(--text)] hover:border-[var(--text-dim)]">
+                    ⚙️ {language === "en" ? "settings" : "ตั้งค่า"}
+                  </button>
+                  <button onClick={handleLogout} className="font-mono text-[0.72rem] cursor-pointer bg-[var(--bg-panel)] border border-[var(--edge)] text-[var(--text-dim)] py-1.5 px-3 rounded-[var(--radius)] transition-all hover:text-[var(--accent)] hover:border-[var(--accent)]">
+                    ⏻ {language === "en" ? "log out" : "ออกจากระบบ"}
+                  </button>
+                </div>
               )}
             </div>
 

@@ -23,7 +23,9 @@ export default function Hero() {
     window.dispatchEvent(new Event("openVaultAuthModal"));
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    
     sessionStorage.removeItem("vault_session");
     setIsLoggedIn(false);
     window.dispatchEvent(new Event("authStateChanged"));
@@ -68,10 +70,9 @@ export default function Hero() {
           {language === "en" ? "Browse work" : "ดูผลงาน"}
         </a>
 
-        <div className="flex items-center gap-3 ml-2">
+        <div className="flex items-center gap-2 ml-2">
           {isLoggedIn ? (
             <>
-              {/* 📌 เปลี่ยน href กลับไปหา API ด่านตรวจของเรา แต่ยังคง target="_blank" เพื่อเปิดแท็บใหม่ */}
               <a 
                 href="/api/files/resume" 
                 target="_blank"
@@ -80,6 +81,13 @@ export default function Hero() {
               >
                 ↗ resume.pdf
               </a>
+              {/* 📌 เพิ่มปุ่ม Settings ตรงนี้ */}
+              <button 
+                onClick={() => window.dispatchEvent(new Event("openAccountSettings"))}
+                className="font-mono text-[0.65rem] text-[var(--text-faint)] hover:text-[var(--text)] transition-colors border border-transparent hover:border-[var(--edge)] px-2 py-1 rounded"
+              >
+                [ {language === "en" ? "SETTINGS" : "ตั้งค่า"} ]
+              </button>
               <button 
                 onClick={handleLogout}
                 className="font-mono text-[0.65rem] text-[var(--text-faint)] hover:text-[var(--danger)] transition-colors border border-transparent hover:border-[var(--danger)] px-2 py-1 rounded"
@@ -95,7 +103,7 @@ export default function Hero() {
               >
                 🔒 resume.pdf
               </button>
-              <span className="font-mono text-[0.6rem] text-[var(--accent-3)] border border-[var(--accent-3)] bg-[rgba(255,210,63,0.1)] px-2 py-[2px] rounded-[3px] pointer-events-none select-none">
+              <span className="font-mono text-[0.6rem] text-[var(--accent-3)] border border-[var(--accent-3)] bg-[rgba(255,210,63,0.1)] px-2 py-[2px] rounded-[3px] pointer-events-none select-none hidden sm:inline-block">
                 {language === "en" ? "LOGIN REQUIRED" : "ต้องเข้าสู่ระบบ"}
               </span>
             </>
@@ -103,7 +111,7 @@ export default function Hero() {
         </div>
       </div>
       
-      {/* ===================== INSPECTOR BOX ===================== */}
+      {/* ... โค้ด INSPECTOR BOX ตามเดิม ... */}
       <div className="mt-[64px] border border-[var(--edge)] rounded-md bg-[linear-gradient(180deg,var(--bg-panel),var(--bg-panel-2))] overflow-hidden">
         <div className="flex items-center gap-[8px] py-[10px] px-[14px] border-b border-[var(--edge)] font-mono text-[0.72rem] text-[var(--text-dim)]">
           <span className="flex gap-[6px]">

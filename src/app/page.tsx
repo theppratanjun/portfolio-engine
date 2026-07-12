@@ -8,14 +8,13 @@ import Vault from "@/components/Vault";
 import Contact from "@/components/Contact";
 import Footer from "@/components/Footer";
 import BackToTop from "@/components/BackToTop";
+import AccountSettings from "@/components/AccountSettings"; // 📌 นำเข้าไฟล์ใหม่
 
 export default function Home() {
   return (
     <>
       <TopHUD />
       <main className="relative z-10">
-        
-        {/* 📌 หุ้ม Container คืนให้ส่วนบน เพื่อแก้ปัญหาหน้าเว็บชิดขอบ */}
         <div className="max-w-[1180px] mx-auto w-full px-6">
           <Hero />
           <Play />
@@ -24,14 +23,12 @@ export default function Home() {
           <Console />
           <Vault />
         </div>
-        
-        {/* 📌 ส่วนติดต่อ (Contact) จัดการความกว้างและสีพื้นหลังในไฟล์ตัวเองแล้ว */}
         <Contact />
-
       </main>
 
       <Footer />
       <BackToTop />
+      <AccountSettings /> {/* 📌 ใส่ไว้ล่างสุดของเว็บ เพื่อให้เรียกใช้ได้ตลอดเวลา */}
     </>
   );
 }
