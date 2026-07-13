@@ -205,7 +205,7 @@ export default function Console() {
         print(
           language === "en"
             ? "Theppratan Junpanya — Computer Engineering and Business Administration graduates, Project Developers creating scalable systems and interactive games, as well as E-commerce systems and Real-time platforms."
-            : "เทพประทาน จันทร์ปัญญา — บัณฑิตวิศวกรรมคอมพิวเตอร์ และ บัณฑิตบริหารธุรกิจ นักพัฒนาโปรเจกต์ผู้สร้างระบบที่รองรับการขยายตัวและเกมอินเทอร์แอกทีฟ รวมไปถึงระบบ E-commerce และแพลตฟอร์มเรียลไทม์"
+            : "เทพประทาน จันทร์ปัญญา — บัณฑิตวิศวกรรมคอมพิวเตอร์ และ บริหารธุรกิจบัณฑิต นักพัฒนาโปรเจกต์ผู้สร้างระบบที่รองรับการขยายตัวและเกมอินเทอร์แอกทีฟ รวมไปถึงระบบ E-commerce และแพลตฟอร์มเรียลไทม์"
         );
         break;
 

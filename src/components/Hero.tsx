@@ -12,7 +12,7 @@ export default function Hero() {
 
   const textToType = language === "en"
     ? "Theppratan Junpanya — Computer Engineering & Business Administration Graduate"
-    : "เทพประทาน จันทร์ปัญญา — บัณฑิตวิศวกรรมคอมพิวเตอร์ และ บัณฑิตบริหารธุรกิจ";
+    : "เทพประทาน จันทร์ปัญญา — บัณฑิตวิศวกรรมคอมพิวเตอร์ และ บริหารธุรกิจบัณฑิต";
 
   useEffect(() => {
     const mountTimer = setTimeout(() => setMounted(true), 100);
@@ -94,7 +94,7 @@ export default function Hero() {
         className={`font-mono text-[0.74rem] text-[var(--text-dim)] flex gap-[18px] flex-wrap mb-[30px] transition duration-1000 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
       >
         <span><b className="text-[var(--good)] font-medium animate-glow-pulse">●</b> {language === "en" ? "open to work" : "เปิดรับงาน"}</span>
-        <span>{language === "en" ? "target" : "เป้าหมาย"}: <span className="text-[var(--accent-2)] animate-glow-pulse">{language === "en" ? "full-stack / backend / gameplay eng" : "วิศวกรซอฟต์แวร์ / แบ็กเอนด์ / เกมเพลย์"}</span></span>
+        <span>{language === "en" ? "target" : "เป้าหมาย"}: <span className="text-[var(--accent-2)] animate-glow-pulse">{language === "en" ? "full-stack / system core / gameplay developer" : "วิศวกรซอฟต์แวร์ / สร้างระบบ / พัฒนาเกม"}</span></span>
         <span>{language === "en" ? "loc: nonthaburi · remote-ready" : "พื้นที่: นนทบุรี · พร้อมทำงานทางไกล"}</span>
       </div>
       
@@ -102,7 +102,7 @@ export default function Hero() {
         className={`font-mono text-[0.72rem] tracking-[0.22em] uppercase text-[var(--accent)] font-medium inline-flex items-center gap-[0.6em] before:content-[''] before:w-[18px] before:h-[1px] before:bg-[var(--accent)] transition duration-1000 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
         style={{ transitionDelay: '100ms' }}
       >
-        {language === "en" ? "double degree · product-minded engineer" : "วิศวกรรมคอมพิวเตอร์ · บริหารธุรกิจ"}
+        {language === "en" ? "double degree · product-minded engineer" : "วิศวกรรมคอมพิวเตอร์ · บริหารธุรกิจบัณฑิต"}
       </span>
       
       <h1 

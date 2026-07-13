@@ -3,19 +3,23 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useLanguage } from "@/context/LanguageContext";
-import dynamic from "next/dynamic"; 
+import dynamic from "next/dynamic";
+// 📌 1. นำเข้า Supabase
+import { createClient } from "@supabase/supabase-js";
 
-// 📌 โหลด Component ย่อยแบบ Lazy Loading
+// 📌 2. สร้างตัวแปรเชื่อมต่อ Supabase
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
 const WitchGameBuild = dynamic(() => import("./vault-projects/WitchGameBuild"), {
   loading: () => <div className="p-10 text-center font-mono text-[var(--text-dim)]">Loading Component Data...</div>,
   ssr: false 
 });
 
-// 📌 โครงสร้างข้อมูลสำหรับแสดงหน้าไพ่สาธารณะ (Public Cards)
 const VAULT_PROJECTS = [
   {
     id: "v01",
-    // 📌 เปลี่ยนหัวข้อเป็น YouTube และ AI Content
     title: { en: "AI Content & YouTube Channels", th: "ผลงานวิดีโอ AI & คอนเทนต์" },
     type: "// Video Editing · Generative AI · YouTube",
     desc: {
@@ -71,15 +75,40 @@ export default function Vault() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
-  
   const [isRegisterMode, setIsRegisterMode] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setMounted(true);
+    // 📌 แก้ไข Error React: ใช้ setTimeout เพื่อหลีกเลี่ยง Cascading Renders
+    const mountTimer = setTimeout(() => setMounted(true), 10);
+    
+    // 📌 3. ตรวจสอบ Session จากทั้ง SessionStorage และ Supabase เมื่อเปิดเว็บ
+    const checkSession = async () => {
       const savedSession = sessionStorage.getItem("vault_session");
-      if (savedSession === "active") setIsUnlocked(true);
-    }, 10);
+      if (savedSession === "active") {
+        setIsUnlocked(true);
+        return;
+      }
+      
+      // ดักจับเวลากลับมาจากการ Login ด้วย Google/GitHub
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        sessionStorage.setItem("vault_session", "active");
+        setIsUnlocked(true);
+      }
+    };
+    checkSession();
+
+    // ฟัง Event กรณีเกิดการ Login/Logout สำเร็จ
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session) {
+        sessionStorage.setItem("vault_session", "active");
+        setIsUnlocked(true);
+        setIsAuthOpen(false);
+      } else if (event === "SIGNED_OUT") {
+        sessionStorage.removeItem("vault_session");
+        setIsUnlocked(false);
+      }
+    });
 
     const handleOpenAuth = () => setIsAuthOpen(true);
     window.addEventListener("openVaultAuthModal", handleOpenAuth);
@@ -87,7 +116,6 @@ export default function Vault() {
     const handleAuthStateChanged = () => {
       const savedSession = sessionStorage.getItem("vault_session");
       setIsUnlocked(savedSession === "active");
-      
       if (savedSession !== "active") {
         setActiveProjectId(null);
         setIsAuthOpen(false);
@@ -96,7 +124,8 @@ export default function Vault() {
     window.addEventListener("authStateChanged", handleAuthStateChanged);
     
     return () => {
-      clearTimeout(timer);
+      clearTimeout(mountTimer);
+      authListener.subscription.unsubscribe();
       window.removeEventListener("openVaultAuthModal", handleOpenAuth);
       window.removeEventListener("authStateChanged", handleAuthStateChanged);
     };
@@ -105,7 +134,11 @@ export default function Vault() {
   useEffect(() => {
     if (isAuthOpen || activeProjectId) {
       window.history.pushState({ vaultModal: true }, "");
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
     }
+    return () => { document.body.style.overflow = ""; };
   }, [isAuthOpen, activeProjectId]);
 
   useEffect(() => {
@@ -142,20 +175,12 @@ export default function Vault() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isAuthOpen, activeProjectId]);
 
-  useEffect(() => {
-    if (isAuthOpen || activeProjectId) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => { document.body.style.overflow = ""; };
-  }, [isAuthOpen, activeProjectId]);
-
   const handleCardClick = (id: string) => {
     if (isUnlocked) setActiveProjectId(id);
     else setIsAuthOpen(true);
   };
 
+  // 📌 4. ฟังก์ชัน Login ด้วย Email/Password ปกติผ่าน Supabase
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -169,51 +194,56 @@ export default function Vault() {
     }
 
     try {
-      const endpoint = isRegisterMode ? "/api/auth/register" : "/api/auth/login";
-      
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: email, password: password }) 
-      });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        if (isRegisterMode) {
-          setSuccessMsg(language === "en" ? "Account created! Please sign in." : "สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ");
-          setIsRegisterMode(false);
-          setPassword("");
-          setConfirmPassword("");
-        } else {
-          setIsUnlocked(true);
-          sessionStorage.setItem("vault_session", "active");
-          window.dispatchEvent(new Event("authStateChanged"));
-          handleCloseModal(); 
-        }
+      if (isRegisterMode) {
+        const { error } = await supabase.auth.signUp({
+          email: email,
+          password: password,
+        });
+        if (error) throw error;
+        setSuccessMsg(language === "en" ? "Account created! Please sign in." : "สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ");
+        setIsRegisterMode(false);
+        setPassword("");
+        setConfirmPassword("");
       } else {
-        setErrorMsg(data.error || "Authentication failed.");
+        const { error } = await supabase.auth.signInWithPassword({
+          email: email,
+          password: password,
+        });
+        if (error) throw error;
       }
-    } catch (error) {
-      setErrorMsg("Network error. Please try again.");
+    } catch (error: unknown) { // 📌 แก้ไข Error TypeScript: เลิกใช้ any และเปลี่ยนมาใช้ unknown
+      if (error instanceof Error) {
+        setErrorMsg(error.message);
+      } else {
+        setErrorMsg("Authentication failed.");
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleOAuthClick = (provider: string) => {
-    setErrorMsg(
-      language === "en" 
-        ? `${provider} OAuth integration requires Supabase config. Please use email.` 
-        : `ระบบล็อกอินด้วย ${provider} ต้องตั้งค่า API Key ก่อน กรุณาใช้อีเมล`
-    );
+  // 📌 5. ฟังก์ชันเรียก OAuth (Google / GitHub)
+  const handleOAuthClick = async (provider: "github" | "google") => {
+    setErrorMsg("");
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: provider,
+        options: {
+          redirectTo: window.location.origin, // ล็อกอินเสร็จให้เด้งกลับมาเว็บเดิม
+        },
+      });
+      if (error) throw error;
+    } catch (error: unknown) { // 📌 แก้ไข Error TypeScript: เลิกใช้ any
+      if (error instanceof Error) {
+        setErrorMsg("OAuth Error: " + error.message);
+      } else {
+        setErrorMsg("OAuth Error: Connection failed.");
+      }
+    }
   };
 
   const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
-    setIsUnlocked(false);
-    sessionStorage.removeItem("vault_session");
-    window.dispatchEvent(new Event("authStateChanged"));
+    await supabase.auth.signOut();
     handleCloseModal(); 
   };
 
@@ -248,10 +278,10 @@ export default function Vault() {
 
             <form onSubmit={handleAuthSubmit}>
               <div className="flex gap-2.5 mb-4">
-                <button type="button" onClick={() => handleOAuthClick("GitHub")} className="flex-1 bg-[var(--bg-panel-2)] border border-[var(--edge)] text-[var(--text)] rounded-[var(--radius)] p-2.5 font-mono text-[0.78rem] cursor-pointer transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]">
+                <button type="button" onClick={() => handleOAuthClick("github")} className="flex-1 bg-[var(--bg-panel-2)] border border-[var(--edge)] text-[var(--text)] rounded-[var(--radius)] p-2.5 font-mono text-[0.78rem] cursor-pointer transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]">
                   ◐ GitHub
                 </button>
-                <button type="button" onClick={() => handleOAuthClick("Google")} className="flex-1 bg-[var(--bg-panel-2)] border border-[var(--edge)] text-[var(--text)] rounded-[var(--radius)] p-2.5 font-mono text-[0.78rem] cursor-pointer transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]">
+                <button type="button" onClick={() => handleOAuthClick("google")} className="flex-1 bg-[var(--bg-panel-2)] border border-[var(--edge)] text-[var(--text)] rounded-[var(--radius)] p-2.5 font-mono text-[0.78rem] cursor-pointer transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]">
                   G Google
                 </button>
               </div>
@@ -384,19 +414,14 @@ export default function Vault() {
               <h1 className="text-[clamp(1.9rem,4vw,3rem)] font-bold tracking-tight mb-2.5 leading-tight">{activeProject.title[language]}</h1>
               <div className="font-mono text-[0.85rem] text-[var(--accent-2)] mb-7">{activeProject.type}</div>
               
-              {/* 📌 หน้าจอจำลองที่กำลังเตรียมโหลดข้อมูล */}
               <div className="border border-[var(--edge)] rounded-lg bg-[var(--bg-panel)] min-h-[340px] flex flex-col items-center justify-center gap-3.5 text-center p-10 mb-7 shadow-sm">
                 <div className="text-[2.4rem]">{activeProject.stageBig}</div>
                 <div className="font-mono text-[0.8rem] text-[var(--text-dim)] max-w-[460px]">{activeProject.stageCap[language]}</div>
               </div>
 
-              {/* 📌 Dynamic Component Rendering */}
               <div className="mt-10">
-                {/* 📌 ส่วนแสดงผลงานสำหรับ V01 (YouTube Channels) */}
                 {activeProjectId === "v01" && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    
-                    {/* Channel 1 */}
                     <div className="p-6 border border-[var(--edge)] rounded bg-[var(--bg-panel-2)] text-left flex flex-col">
                       <h3 className="font-mono text-[1.1rem] text-[var(--text)] font-bold mb-3">🎬 YarkRooMai</h3>
                       <p className="font-mono text-[0.8rem] text-[var(--text-dim)] mb-6 flex-1">
@@ -414,7 +439,6 @@ export default function Vault() {
                       </a>
                     </div>
 
-                    {/* Channel 2 */}
                     <div className="p-6 border border-[var(--edge)] rounded bg-[var(--bg-panel-2)] text-left flex flex-col">
                       <h3 className="font-mono text-[1.1rem] text-[var(--text)] font-bold mb-3">🎧 InfinitySound365</h3>
                       <p className="font-mono text-[0.8rem] text-[var(--text-dim)] mb-6 flex-1">
@@ -450,7 +474,6 @@ export default function Vault() {
                   </div>
                 )}
               </div>
-
             </div>
           )}
         </div>
@@ -486,7 +509,7 @@ export default function Vault() {
               <span>
                 {language === "en" 
                   ? (isUnlocked ? "welcome back · click a card to open it" : "hidden projects & works-in-progress · sign in to view")
-                  : (isUnlocked ? "ยินดีต้อนรับกลับ · คลิกที่กล่องเพื่อเปิดดูโปรเจกต์" : "ผลงานที่ถูกซ่อน & โปรเจกต์ที่กำลังพัฒนา · ลงชื่อเข้าใช้เพื่อดูเนื้อหา")}
+                  : (isUnlocked ? "ยินดีต้อนรับกลับ · คลิกที่กล่องเพื่อเปิดดูโปรเจกต์" : "ผลงานที่ถูกซ่อน & ระบบที่กำลังพัฒนา · ลงชื่อเข้าใช้เพื่อดูเนื้อหา")}
               </span>
               {isUnlocked && (
                 <div className="ml-auto flex items-center gap-2">

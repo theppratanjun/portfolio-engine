@@ -19,6 +19,10 @@ export default function Play() {
   const [finalScore, setFinalScore] = useState(0);
   const gameOverRef = useRef(false); 
 
+  // 📌 เพิ่ม State และ Ref สำหรับควบคุมการเริ่มเกม
+  const [hasStarted, setHasStarted] = useState(false);
+  const startedRef = useRef(false);
+
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [playerName, setPlayerName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -53,6 +57,11 @@ export default function Play() {
       window.removeEventListener("authStateChanged", checkAuth);
     };
   }, [fetchLeaderboard]);
+
+  // 📌 อัปเดต Ref ทันทีที่ State เปลี่ยน เพื่อให้ฟังก์ชันใน canvas รับรู้
+  useEffect(() => {
+    startedRef.current = hasStarted;
+  }, [hasStarted]);
 
   useEffect(() => {
     const cv = canvasRef.current;
@@ -128,7 +137,8 @@ export default function Play() {
       pointerX = ((e.clientX - r.left) / r.width) * W;
     };
     const handlePointerDown = (e: PointerEvent) => {
-      if (gameOverRef.current) return;
+      // ป้องกันการคลิกยิงถ้าเกมยังไม่เริ่ม หรือจบเกมแล้ว
+      if (gameOverRef.current || !startedRef.current) return;
       const r = cv.getBoundingClientRect();
       pointerX = ((e.clientX - r.left) / r.width) * W;
       shoot();
@@ -149,7 +159,9 @@ export default function Play() {
     let animationFrameId: number;
 
     function update() {
-      if (GAME.paused || gameOverRef.current) return;
+      // 📌 ถ้าเกมโดน Pause, Game Over หรือ "ยังไม่กด Start" จะไม่ทำการคำนวณใดๆ ทั้งสิ้น (หยุดเวลา)
+      if (GAME.paused || gameOverRef.current || !startedRef.current) return;
+      
       const p = GAME.player;
 
       if (GAME.keys["arrowleft"] || GAME.keys["a"]) p.x -= p.speed;
@@ -233,7 +245,7 @@ export default function Play() {
       ctx.fillStyle = CY();
       rect(p.x, p.y + 4, 8, 8, CY());
 
-      if (GAME.paused) {
+      if (GAME.paused && startedRef.current && !gameOverRef.current) {
         ctx.fillStyle = "rgba(0,0,0,0.55)"; ctx.fillRect(0, 0, W, H);
         ctx.fillStyle = "#fff"; ctx.font = "600 38px JetBrains Mono, monospace"; ctx.textAlign = "center";
         ctx.fillText("|| PAUSED", W / 2, H / 2);
@@ -269,6 +281,7 @@ export default function Play() {
   const handleRestart = () => {
     setIsGameOver(false);
     gameOverRef.current = false;
+    setHasStarted(true); // 📌 พอกด Restart ก็ให้เกมรันต่อทันที
     setGameKey(prev => prev + 1); 
   };
 
@@ -314,7 +327,6 @@ export default function Play() {
           {language === "en" ? "runtime · interactive" : "ประมวลผลสด · ตอบสนองผู้ใช้"}
         </span>
         
-        {/* 📌 แก้ไข Typography: ปรับขนาดและบังคับ inline-block ไม่ให้ตัดคำกลางประโยค */}
         <h2 className={`font-bold mt-4 mb-3 ${language === "en" ? "text-4xl md:text-5xl tracking-tight leading-[1.05]" : "text-[1.65rem] sm:text-3xl md:text-4xl tracking-normal leading-[1.4]"}`}>
           {language === "en" ? (
             <>The Recruiter&apos;s Lounge <br /> &quot; HR Chill Zone &quot;</>
@@ -344,6 +356,22 @@ export default function Play() {
         <div className="relative">
           <canvas ref={canvasRef} width={1280} height={720} className="block w-full h-auto aspect-video bg-[#070809] cursor-crosshair touch-none"></canvas>
           
+          {/* 📌 หน้าจอรอให้กดปุ่ม เริ่มเกม (Start Game Overlay) */}
+          {!hasStarted && !isGameOver && (
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center p-6 z-10 animate-fade-in">
+              <h3 className="text-2xl md:text-3xl font-mono font-bold text-[var(--text)] mb-6 tracking-widest text-center shadow-black drop-shadow-md">
+                {language === "en" ? "HR CHILL ZONE" : "โซนผ่อนคลาย HR"}
+              </h3>
+              <button 
+                onClick={() => setHasStarted(true)} 
+                className="bg-[var(--accent)] text-white font-mono text-[1.1rem] py-3.5 px-8 rounded-[var(--radius)] hover:brightness-110 transition-all flex items-center gap-3 shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_40%,transparent)] hover:shadow-[0_0_30px_color-mix(in_srgb,var(--accent)_60%,transparent)] hover:-translate-y-1"
+              >
+                ▶ {language === "en" ? "CLICK TO PLAY" : "คลิกเพื่อเริ่มเล่น"}
+              </button>
+            </div>
+          )}
+
+          {/* หน้าจอ Game Over และแบบฟอร์มบันทึกคะแนน */}
           {isGameOver && (
             <div className="absolute inset-0 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center p-6 z-10 animate-fade-in">
               <h3 className="text-5xl font-mono font-bold text-[var(--accent)] mb-2 tracking-widest">GAME OVER</h3>
