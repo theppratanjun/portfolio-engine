@@ -41,43 +41,40 @@ export async function POST(request: Request) {
     if (!sessionToken) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const session = await prisma.session.findUnique({ where: { sessionToken }, include: { user: true } });
-    if (!session || session.expiresAt < new Date()) return NextResponse.json({ error: "Session expired" }, { status: 401 });
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { playerName, score } = await request.json();
+    const finalPlayerName = playerName || session.user.email.split('@')[0];
 
-    const existingRecord = await prisma.leaderboard.findUnique({
-      where: { userId: session.userId }
-    });
+    // 📌 ค้นหาว่ามีชื่ออยู่ในกระดานไหม (ถ้าเคยลบไปแล้ว ค่านี้จะเป็น null)
+    const existingRecord = await prisma.leaderboard.findUnique({ where: { userId: session.userId } });
 
     if (existingRecord) {
-      const updated = await prisma.leaderboard.update({
-        where: { userId: session.userId },
-        data: {
-          playerName: playerName,
-          score: Math.max(existingRecord.score, score)
-        }
+      // ✅ กรณีที่มีอยู่แล้ว: ให้อัปเดตคะแนน (ถ้าสูงกว่าเดิม) และอัปเดตชื่อ
+      const newScore = Math.max(existingRecord.score, score);
+      const updatedRecord = await prisma.leaderboard.update({
+        where: { id: existingRecord.id },
+        data: { score: newScore, playerName: finalPlayerName }
       });
-      
-      // 📝 บันทึก AuditLog กรณีอัปเดตสถิติ
+
       await prisma.auditLog.create({
-        data: { userId: session.userId, action: 'UPDATE_SCORE', details: `Updated profile/score to ${Math.max(existingRecord.score, score)}` }
+        data: { userId: session.userId, action: 'UPDATE_SCORE', details: `Updated score to ${newScore}` }
       });
+      return NextResponse.json({ success: true, data: updatedRecord });
       
-      return NextResponse.json({ success: true, data: updated });
     } else {
+      // ✅ กรณีที่เล่นครั้งแรก หรือ "เคยลบสถิติตัวเองทิ้งไปแล้ว": ให้สร้างใหม่ไปเลย!
       const newRecord = await prisma.leaderboard.create({
         data: {
           userId: session.userId,
-          playerName: playerName || session.user.email.split('@')[0],
+          playerName: finalPlayerName,
           score: score
         }
       });
-      
-      // 📝 บันทึก AuditLog กรณีเล่นครั้งแรก
-      await prisma.auditLog.create({
-        data: { userId: session.userId, action: 'SAVE_SCORE', details: `First time score saved: ${score}` }
-      });
 
+      await prisma.auditLog.create({
+        data: { userId: session.userId, action: 'SAVE_SCORE', details: `New score saved: ${score}` }
+      });
       return NextResponse.json({ success: true, data: newRecord });
     }
   } catch (error) {
@@ -99,7 +96,6 @@ export async function DELETE() {
       where: { userId: session.userId }
     });
 
-    // 📝 บันทึก AuditLog กรณีลบสถิติของตัวเอง
     await prisma.auditLog.create({
       data: { userId: session.userId, action: 'DELETE_SCORE', details: `Deleted leaderboard record` }
     });
@@ -107,6 +103,6 @@ export async function DELETE() {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Leaderboard DELETE Error:", error);
-    return NextResponse.json({ error: "Failed to delete" }, { status: 500 });
+    return NextResponse.json({ error: "Server Error" }, { status: 500 });
   }
 }

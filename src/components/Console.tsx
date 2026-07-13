@@ -205,7 +205,7 @@ export default function Console() {
         print(
           language === "en"
             ? "Theppratan Junpanya — Computer Engineering and Business Administration graduates, Project Developers creating scalable systems and interactive games, as well as E-commerce systems and Real-time platforms."
-            : "เทพประทาน จันทร์ปัญญา — บัณฑิตวิศวกรรมคอมพิวเตอร์ และ บัณฑิตบริหารธุรกิจ นักพัฒนาโปรเจกต์ผู้สร้างระบบที่รองรับการขยายตัวและเกมอินเทอร์แอกทีฟ รวมไปถึงระบบ E-commerce และแพลตฟอร์มเรียลไทม์"
+            : "เทพประทาน จันทร์ปัญญา — บัณฑิตวิศวกรรมคอมพิวเตอร์ และ บริหารธุรกิจบัณฑิต นักพัฒนาโปรเจกต์ผู้สร้างระบบที่รองรับการขยายตัวและเกมอินเทอร์แอกทีฟ รวมไปถึงระบบ E-commerce และแพลตฟอร์มเรียลไทม์"
         );
         break;
 
@@ -275,6 +275,7 @@ export default function Console() {
             <input
               ref={inputRef}
               type="text"
+              suppressHydrationWarning     // 👈 เพิ่มบรรทัดนี้เข้าไปครับ
               className="flex-1 bg-transparent border-none outline-none text-[#e6e9ef] font-mono text-[0.85rem] w-full caret-[#21e6c1]"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}

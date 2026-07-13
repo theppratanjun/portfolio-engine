@@ -2,6 +2,7 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useLanguage } from "@/context/LanguageContext";
+import { useTheme } from "@/context/ThemeContext"; // 📌 1. Import useTheme เข้ามา
 
 type Bullet = { x: number; y: number; vy: number };
 type Enemy = { x: number; y: number; w: number; h: number; vy: number; vx: number; hp: number };
@@ -13,11 +14,15 @@ export default function Play() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [fps, setFps] = useState(60);
   const { language } = useLanguage();
+  const { theme } = useTheme(); // 📌 2. เรียกใช้งาน theme
 
   const [gameKey, setGameKey] = useState(0); 
   const [isGameOver, setIsGameOver] = useState(false);
   const [finalScore, setFinalScore] = useState(0);
   const gameOverRef = useRef(false); 
+
+  const [hasStarted, setHasStarted] = useState(false);
+  const startedRef = useRef(false);
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [playerName, setPlayerName] = useState("");
@@ -53,6 +58,10 @@ export default function Play() {
       window.removeEventListener("authStateChanged", checkAuth);
     };
   }, [fetchLeaderboard]);
+
+  useEffect(() => {
+    startedRef.current = hasStarted;
+  }, [hasStarted]);
 
   useEffect(() => {
     const cv = canvasRef.current;
@@ -128,7 +137,7 @@ export default function Play() {
       pointerX = ((e.clientX - r.left) / r.width) * W;
     };
     const handlePointerDown = (e: PointerEvent) => {
-      if (gameOverRef.current) return;
+      if (gameOverRef.current || !startedRef.current) return;
       const r = cv.getBoundingClientRect();
       pointerX = ((e.clientX - r.left) / r.width) * W;
       shoot();
@@ -149,7 +158,8 @@ export default function Play() {
     let animationFrameId: number;
 
     function update() {
-      if (GAME.paused || gameOverRef.current) return;
+      if (GAME.paused || gameOverRef.current || !startedRef.current) return;
+      
       const p = GAME.player;
 
       if (GAME.keys["arrowleft"] || GAME.keys["a"]) p.x -= p.speed;
@@ -233,7 +243,7 @@ export default function Play() {
       ctx.fillStyle = CY();
       rect(p.x, p.y + 4, 8, 8, CY());
 
-      if (GAME.paused) {
+      if (GAME.paused && startedRef.current && !gameOverRef.current) {
         ctx.fillStyle = "rgba(0,0,0,0.55)"; ctx.fillRect(0, 0, W, H);
         ctx.fillStyle = "#fff"; ctx.font = "600 38px JetBrains Mono, monospace"; ctx.textAlign = "center";
         ctx.fillText("|| PAUSED", W / 2, H / 2);
@@ -269,12 +279,16 @@ export default function Play() {
   const handleRestart = () => {
     setIsGameOver(false);
     gameOverRef.current = false;
+    setHasStarted(true); 
     setGameKey(prev => prev + 1); 
   };
 
   const handleSaveScore = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (!isLoggedIn) {
+      localStorage.setItem("pending_score", finalScore.toString());
+      localStorage.setItem("pending_player", playerName || "");
       window.dispatchEvent(new Event("openVaultAuthModal"));
       return;
     }
@@ -314,7 +328,6 @@ export default function Play() {
           {language === "en" ? "runtime · interactive" : "ประมวลผลสด · ตอบสนองผู้ใช้"}
         </span>
         
-        {/* 📌 แก้ไข Typography: ปรับขนาดและบังคับ inline-block ไม่ให้ตัดคำกลางประโยค */}
         <h2 className={`font-bold mt-4 mb-3 ${language === "en" ? "text-4xl md:text-5xl tracking-tight leading-[1.05]" : "text-[1.65rem] sm:text-3xl md:text-4xl tracking-normal leading-[1.4]"}`}>
           {language === "en" ? (
             <>The Recruiter&apos;s Lounge <br /> &quot; HR Chill Zone &quot;</>
@@ -344,6 +357,20 @@ export default function Play() {
         <div className="relative">
           <canvas ref={canvasRef} width={1280} height={720} className="block w-full h-auto aspect-video bg-[#070809] cursor-crosshair touch-none"></canvas>
           
+          {!hasStarted && !isGameOver && (
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center p-6 z-10 animate-fade-in">
+              <h3 className="text-2xl md:text-3xl font-mono font-bold text-[var(--text)] mb-6 tracking-widest text-center shadow-black drop-shadow-md">
+                {language === "en" ? "HR CHILL ZONE" : "โซนผ่อนคลาย HR"}
+              </h3>
+              <button 
+                onClick={() => setHasStarted(true)} 
+                className="bg-[var(--accent)] text-white font-mono text-[1.1rem] py-3.5 px-8 rounded-[var(--radius)] hover:brightness-110 transition-all flex items-center gap-3 shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_40%,transparent)] hover:shadow-[0_0_30px_color-mix(in_srgb,var(--accent)_60%,transparent)] hover:-translate-y-1"
+              >
+                ▶ {language === "en" ? "CLICK TO PLAY" : "คลิกเพื่อเริ่มเล่น"}
+              </button>
+            </div>
+          )}
+
           {isGameOver && (
             <div className="absolute inset-0 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center p-6 z-10 animate-fade-in">
               <h3 className="text-5xl font-mono font-bold text-[var(--accent)] mb-2 tracking-widest">GAME OVER</h3>
@@ -393,9 +420,7 @@ export default function Play() {
 
         <div className="flex items-center justify-between gap-3 flex-wrap py-3 px-4 bg-[var(--bg-panel-2)] border-t border-[var(--edge)] font-mono text-xs text-[var(--text-dim)]">
           <span>
-            Move <kbd className="bg-[var(--bg)] border border-[var(--edge)] border-b-2 rounded-[3px] py-[1px] px-[7px] text-[var(--text)] mx-[2px]">A</kbd>
-            <kbd className="bg-[var(--bg)] border border-[var(--edge)] border-b-2 rounded-[3px] py-[1px] px-[7px] text-[var(--text)] mx-[2px]">D</kbd> 
-            <kbd className="bg-[var(--bg)] border border-[var(--edge)] border-b-2 rounded-[3px] py-[1px] px-[7px] text-[var(--text)] ml-2 mr-[2px]">Mouse</kbd> 
+            Move <kbd className="bg-[var(--bg)] border border-[var(--edge)] border-b-2 rounded-[3px] py-[1px] px-[7px] text-[var(--text)] ml-2 mr-[2px]">Mouse</kbd> 
             · Shoot <kbd className="bg-[var(--bg)] border border-[var(--edge)] border-b-2 rounded-[3px] py-[1px] px-[7px] text-[var(--text)] mx-[2px]">Click</kbd>
           </span>
           <span id="score-readout">HR SCORE 0 · WAVE 1 · LIVES 3</span>
@@ -433,8 +458,9 @@ export default function Play() {
                 leaders.map((leader, index) => (
                   <tr key={leader.id} className={`border-t border-[var(--edge)] transition-colors hover:bg-[var(--bg-panel-2)] ${leader.isMe ? "bg-[rgba(33,230,193,0.05)]" : ""}`}>
                     <td className="py-3 px-5 text-[var(--text-dim)]">#{index + 1}</td>
+                    {/* 📌 3. แก้ไขบรรทัดนี้: เพิ่มเงื่อนไขเปลี่ยนสีตัวหนังสือตามธีม และแปลเป็น "คุณ" */}
                     <td className="py-3 px-5 font-bold text-[var(--text)]">
-                      {leader.playerName} {leader.isMe && <span className="text-[0.6rem] bg-[var(--accent-2)] text-[#04201b] px-1.5 py-0.5 rounded ml-2">YOU</span>}
+                      {leader.playerName} {leader.isMe && <span className={`text-[0.6rem] bg-[var(--accent-2)] px-1.5 py-0.5 rounded ml-2 ${theme === 'light' ? 'text-white' : 'text-[#04201b]'}`}>{language === "en" ? "YOU" : "คุณ"}</span>}
                     </td>
                     <td className="py-3 px-5 text-[var(--good)]">{leader.score.toLocaleString()}</td>
                     <td className="py-3 px-5 text-right">

@@ -12,7 +12,7 @@ export default function AccountSettings() {
   
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [tab, setTab] = useState<"profile" | "security" | "danger">("profile"); // 📌 เพิ่มแท็บ profile
+  const [tab, setTab] = useState<"profile" | "security" | "danger">("profile");
 
   const [displayName, setDisplayName] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
@@ -21,6 +21,7 @@ export default function AccountSettings() {
   
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
+  const [isOAuth, setIsOAuth] = useState(false); 
   const [message, setMessage] = useState<{ text: string; type: "error" | "success" } | null>(null);
 
   useEffect(() => {
@@ -30,12 +31,13 @@ export default function AccountSettings() {
       setIsOpen(true);
       setTab("profile");
       setMessage(null);
-      // 📌 เมื่อเปิดหน้าต่าง ให้ดึงชื่อจาก Database มาแสดง
       setIsFetching(true);
+      
       fetch("/api/user/settings")
         .then(res => res.json())
         .then(data => {
           if (data.playerName) setDisplayName(data.playerName);
+          setIsOAuth(data.isOAuth === true); 
         })
         .finally(() => setIsFetching(false));
     };
@@ -54,11 +56,15 @@ export default function AccountSettings() {
     setCurrentPassword("");
     setNewPassword("");
     setDeletePassword("");
+    setIsOAuth(false);
   };
 
-  // 📌 ฟังก์ชันเปลี่ยนชื่อ
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // 📌 เพิ่มหน้าต่าง Confirm ก่อนเปลี่ยนชื่อ
+    if (!confirm(language === "en" ? "Are you sure you want to change your Display Name?" : "แน่ใจหรือไม่ว่าต้องการเปลี่ยนชื่อที่ใช้แสดงผล?")) return;
+
     setIsLoading(true);
     setMessage(null);
 
@@ -82,7 +88,6 @@ export default function AccountSettings() {
     }
   };
 
-  // 📌 ฟังก์ชันเปลี่ยนรหัส
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -110,7 +115,6 @@ export default function AccountSettings() {
     }
   };
 
-  // 📌 ฟังก์ชันลบบัญชี
   const handleDeleteAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!confirm(language === "en" ? "WARNING: This cannot be undone. Are you sure?" : "คำเตือน: การกระทำนี้ไม่สามารถย้อนกลับได้ แน่ใจหรือไม่?")) return;
@@ -122,12 +126,11 @@ export default function AccountSettings() {
       const res = await fetch("/api/user/settings", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: deletePassword })
+        body: JSON.stringify({ password: deletePassword }) 
       });
       
       if (res.ok) {
-        sessionStorage.removeItem("vault_session");
-        window.dispatchEvent(new Event("authStateChanged"));
+        window.dispatchEvent(new Event("triggerVaultLogout")); 
         handleClose();
         alert(language === "en" ? "Account deleted." : "ลบบัญชีเรียบร้อยแล้ว");
       } else {
@@ -159,19 +162,22 @@ export default function AccountSettings() {
             <button onClick={handleClose} className="text-[var(--text-dim)] hover:text-[var(--accent)] text-2xl leading-none transition-colors">×</button>
           </div>
           <div className="flex font-mono text-[0.75rem]">
-            {/* 📌 แท็บ 3 อัน: Profile | Security | Danger Zone */}
             <button 
               onClick={() => { setTab("profile"); setMessage(null); }} 
               className={`flex-1 py-3 text-center border-b-2 transition-all font-medium ${tab === "profile" ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--bg-panel)]" : "border-transparent text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"}`}
             >
               {language === "en" ? "Profile" : "โปรไฟล์"}
             </button>
-            <button 
-              onClick={() => { setTab("security"); setMessage(null); }} 
-              className={`flex-1 py-3 text-center border-b-2 transition-all font-medium ${tab === "security" ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--bg-panel)]" : "border-transparent text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"}`}
-            >
-              {language === "en" ? "Security" : "ความปลอดภัย"}
-            </button>
+            
+            {!isOAuth && (
+              <button 
+                onClick={() => { setTab("security"); setMessage(null); }} 
+                className={`flex-1 py-3 text-center border-b-2 transition-all font-medium ${tab === "security" ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--bg-panel)]" : "border-transparent text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)]"}`}
+              >
+                {language === "en" ? "Security" : "ความปลอดภัย"}
+              </button>
+            )}
+
             <button 
               onClick={() => { setTab("danger"); setMessage(null); }} 
               className={`flex-1 py-3 text-center border-b-2 transition-all font-medium ${tab === "danger" ? "border-[var(--danger)] text-[var(--danger)] bg-[var(--bg-panel)]" : "border-transparent text-[var(--text-dim)] hover:text-[var(--danger)] hover:bg-[color-mix(in_srgb,var(--danger)_5%,transparent)]"}`}
@@ -188,7 +194,6 @@ export default function AccountSettings() {
             </div>
           )}
 
-          {/* 📌 แท็บโปรไฟล์ (เปลี่ยนชื่อ) */}
           {tab === "profile" && (
             <form onSubmit={handleUpdateProfile}>
               <div className="mb-5">
@@ -208,6 +213,11 @@ export default function AccountSettings() {
                 <p className="text-[0.7rem] text-[var(--text-faint)] mt-2 font-mono">
                   {language === "en" ? "* This name will appear on the Leaderboard." : "* ชื่อนี้จะไปปรากฏในกระดานคะแนน Leaderboard"}
                 </p>
+                {isOAuth && (
+                  <p className="text-[0.7rem] text-[var(--accent-2)] mt-2 font-mono">
+                    {language === "en" ? "✓ Connected via 3rd Party (OAuth)" : "✓ บัญชีเชื่อมต่อผ่าน Google/GitHub"}
+                  </p>
+                )}
               </div>
               <button type="submit" disabled={isLoading || isFetching} className="w-full bg-[var(--accent)] text-white font-mono text-[0.85rem] py-2.5 rounded hover:brightness-110 disabled:opacity-50 transition-all font-medium">
                 {isLoading ? "Saving..." : (language === "en" ? "Save Changes" : "บันทึกชื่อใหม่")}
@@ -215,8 +225,7 @@ export default function AccountSettings() {
             </form>
           )}
 
-          {/* 📌 แท็บความปลอดภัย (เปลี่ยนรหัส) */}
-          {tab === "security" && (
+          {tab === "security" && !isOAuth && (
             <form onSubmit={handleChangePassword}>
               <div className="mb-4">
                 <label className="block font-mono text-[0.75rem] text-[var(--text-dim)] mb-1.5 font-medium">{language === "en" ? "Current Password" : "รหัสผ่านเดิม"}</label>
@@ -232,16 +241,23 @@ export default function AccountSettings() {
             </form>
           )}
 
-          {/* 📌 แท็บอันตราย (ลบบัญชี) */}
           {tab === "danger" && (
             <form onSubmit={handleDeleteAccount}>
+              {/* 📌 แก้ไขคำอธิบายให้ชัดเจนว่าลบออกจากฐานข้อมูล */}
               <p className="text-[0.85rem] text-[var(--text-dim)] mb-4 leading-relaxed">
-                {language === "en" ? "Deleting your account will remove all your access and delete your High Scores from the Leaderboard. This action is permanent." : "การลบบัญชีจะทำการลบสถิติของคุณออกจากกระดานคะแนน และไม่สามารถกู้คืนได้"}
+                {language === "en" 
+                  ? "Deleting your account will permanently remove your data, access rights, and High Scores from the database. This action cannot be undone." 
+                  : "การลบบัญชีจะลบข้อมูลส่วนตัว สิทธิ์การเข้าถึง และสถิติคะแนนทั้งหมดของคุณออกจากฐานข้อมูลอย่างถาวร และไม่สามารถกู้คืนได้"}
               </p>
-              <div className="mb-5">
-                <label className="block font-mono text-[0.75rem] text-[var(--danger)] mb-1.5 font-medium">{language === "en" ? "Enter password to confirm" : "ใส่รหัสผ่านเพื่อยืนยันการลบ"}</label>
-                <input type="password" required value={deletePassword} onChange={(e) => setDeletePassword(e.target.value)} className="w-full bg-[var(--bg)] border border-[var(--danger)] rounded py-2 px-3 text-[var(--text)] font-mono text-[0.85rem] focus:outline-none focus:shadow-[0_0_0_2px_rgba(255,95,87,0.2)] transition-all" />
-              </div>
+              
+              {!isOAuth && (
+                <div className="mb-5">
+                  <label className="block font-mono text-[0.75rem] text-[var(--danger)] mb-1.5 font-medium">{language === "en" ? "Enter password to confirm" : "ใส่รหัสผ่านเพื่อยืนยันการลบ"}</label>
+                  <input type="password" required value={deletePassword} onChange={(e) => setDeletePassword(e.target.value)} className="w-full bg-[var(--bg)] border border-[var(--danger)] rounded py-2 px-3 text-[var(--text)] font-mono text-[0.85rem] focus:outline-none focus:shadow-[0_0_0_2px_rgba(255,95,87,0.2)] transition-all" />
+                </div>
+              )}
+
+              {/* 📌 ปรับให้ตัวหนังสือเป็นสีแดงตลอดเวลา และมีกรอบสีแดง */}
               <button 
                 type="submit" 
                 disabled={isLoading} 

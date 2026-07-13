@@ -35,11 +35,9 @@ export default function TopHUD() {
     setTheme(theme === "light" ? "dark" : "light");
   };
 
-  const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
-    sessionStorage.removeItem("vault_session");
-    setIsLoggedIn(false);
-    window.dispatchEvent(new Event("authStateChanged"));
+  // 📌 แก้ไขตรงนี้: ให้ยิงสัญญาณ Master Logout แทนการลบแค่ Cookie ฝั่งเดียว
+  const handleLogout = () => {
+    window.dispatchEvent(new Event("triggerVaultLogout"));
   };
 
   const navItems = ["play", "work", "skills", "console", "vault", "contact"];
@@ -131,7 +129,7 @@ export default function TopHUD() {
           </a>
         ))}
         <div className="flex gap-2 pt-3 mt-1 border-t border-[var(--edge)] px-[14px]">
-          <button onClick={toggleLanguage} className="flex-1 font-mono text-[0.78rem] cursor-pointer bg-[var(--bg-panel-2)] border border-[var(--edge)] py-[10px] rounded-[var(--radius)] transition-all active:border-[var(--accent)]">
+          <button onClick={() => { toggleLanguage(); setIsMobileMenuOpen(false); }} className="flex-1 font-mono text-[0.78rem] cursor-pointer bg-[var(--bg-panel-2)] border border-[var(--edge)] py-[10px] rounded-[var(--radius)] transition-all active:border-[var(--accent)]">
             <span className={language === 'th' ? "text-[var(--text)]" : "text-[var(--text-faint)]"}>TH</span>
             <span className="text-[var(--text-faint)]"> / </span>
             <span className={language === 'en' ? "text-[var(--text)]" : "text-[var(--text-faint)]"}>EN</span>

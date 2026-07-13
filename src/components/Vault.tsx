@@ -1,21 +1,25 @@
+// src/components/Vault.tsx
 "use client";
 
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useLanguage } from "@/context/LanguageContext";
-import dynamic from "next/dynamic"; 
+import dynamic from "next/dynamic";
+import { createClient } from "@supabase/supabase-js";
 
-// 📌 โหลด Component ย่อยแบบ Lazy Loading
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder";
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// 📌 เก็บ Component ไว้เผื่ออนาคตกลับมาใช้
 const WitchGameBuild = dynamic(() => import("./vault-projects/WitchGameBuild"), {
   loading: () => <div className="p-10 text-center font-mono text-[var(--text-dim)]">Loading Component Data...</div>,
   ssr: false 
 });
 
-// 📌 โครงสร้างข้อมูลสำหรับแสดงหน้าไพ่สาธารณะ (Public Cards)
 const VAULT_PROJECTS = [
   {
     id: "v01",
-    // 📌 เปลี่ยนหัวข้อเป็น YouTube และ AI Content
     title: { en: "AI Content & YouTube Channels", th: "ผลงานวิดีโอ AI & คอนเทนต์" },
     type: "// Video Editing · Generative AI · YouTube",
     desc: {
@@ -71,23 +75,106 @@ export default function Vault() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
-  
   const [isRegisterMode, setIsRegisterMode] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const mountTimer = setTimeout(() => {
       setMounted(true);
-      const savedSession = sessionStorage.getItem("vault_session");
-      if (savedSession === "active") setIsUnlocked(true);
-    }, 10);
+      
+      const savedScroll = localStorage.getItem("oauth_return_scroll");
+      if (savedScroll) {
+        window.scrollTo(0, parseInt(savedScroll, 10)); 
+        localStorage.removeItem("oauth_return_scroll"); 
+      }
+    }, 150); 
+    
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_IN" && session) {
+        try {
+          const syncRes = await fetch('/api/auth/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              email: session.user.email,
+              name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email
+            })
+          });
+
+          if (!syncRes.ok) {
+            const errData = await syncRes.json();
+            throw new Error(errData.error || "Backend Sync Failed");
+          }
+
+          const pendingScore = localStorage.getItem("pending_score");
+          const pendingPlayer = localStorage.getItem("pending_player");
+
+          if (pendingScore) {
+            const scoreRes = await fetch("/api/leaderboard", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ 
+                playerName: pendingPlayer || "HR_Guest", 
+                score: parseInt(pendingScore, 10) 
+              })
+            });
+
+            if (scoreRes.ok) {
+              localStorage.removeItem("pending_score");
+              localStorage.removeItem("pending_player");
+            } else {
+              console.error("Failed to auto-save score to backend.");
+            }
+          }
+
+          sessionStorage.setItem("vault_session", "active");
+          setIsUnlocked(true);
+          setIsAuthOpen(false);
+          window.dispatchEvent(new Event("authStateChanged"));
+          
+        } catch (error: unknown) {
+          console.error("Auth Sync Error:", error);
+          await supabase.auth.signOut();
+          sessionStorage.removeItem("vault_session");
+          setIsUnlocked(false);
+          
+          if (error instanceof Error) {
+            setErrorMsg(language === "en" ? `Authentication Error: ${error.message}` : `การซิงค์ข้อมูลล้มเหลว: ${error.message}`);
+          }
+        }
+      } else if (event === "SIGNED_OUT") {
+        await fetch("/api/auth/logout", { method: "POST" });
+        sessionStorage.removeItem("vault_session");
+        setIsUnlocked(false);
+        window.dispatchEvent(new Event("authStateChanged"));
+      }
+    });
 
     const handleOpenAuth = () => setIsAuthOpen(true);
     window.addEventListener("openVaultAuthModal", handleOpenAuth);
 
+    const doMasterLogout = async () => {
+      await fetch("/api/auth/logout", { method: "POST" }); 
+      await supabase.auth.signOut(); 
+      sessionStorage.removeItem("vault_session"); 
+      setIsUnlocked(false);
+      window.dispatchEvent(new Event("authStateChanged"));
+    };
+    window.addEventListener("triggerVaultLogout", doMasterLogout);
+
+    const checkSession = async () => {
+      const savedSession = sessionStorage.getItem("vault_session");
+      if (savedSession === "active") setIsUnlocked(true);
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session && savedSession !== "active") {
+        supabase.auth.refreshSession();
+      }
+    };
+    checkSession();
+
     const handleAuthStateChanged = () => {
       const savedSession = sessionStorage.getItem("vault_session");
       setIsUnlocked(savedSession === "active");
-      
       if (savedSession !== "active") {
         setActiveProjectId(null);
         setIsAuthOpen(false);
@@ -96,8 +183,10 @@ export default function Vault() {
     window.addEventListener("authStateChanged", handleAuthStateChanged);
     
     return () => {
-      clearTimeout(timer);
+      clearTimeout(mountTimer);
+      authListener.subscription.unsubscribe();
       window.removeEventListener("openVaultAuthModal", handleOpenAuth);
+      window.removeEventListener("triggerVaultLogout", doMasterLogout);
       window.removeEventListener("authStateChanged", handleAuthStateChanged);
     };
   }, []);
@@ -105,7 +194,11 @@ export default function Vault() {
   useEffect(() => {
     if (isAuthOpen || activeProjectId) {
       window.history.pushState({ vaultModal: true }, "");
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
     }
+    return () => { document.body.style.overflow = ""; };
   }, [isAuthOpen, activeProjectId]);
 
   useEffect(() => {
@@ -140,15 +233,6 @@ export default function Vault() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isAuthOpen, activeProjectId]);
-
-  useEffect(() => {
-    if (isAuthOpen || activeProjectId) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => { document.body.style.overflow = ""; };
   }, [isAuthOpen, activeProjectId]);
 
   const handleCardClick = (id: string) => {
@@ -186,6 +270,22 @@ export default function Vault() {
           setPassword("");
           setConfirmPassword("");
         } else {
+          const pendingScore = localStorage.getItem("pending_score");
+          const pendingPlayer = localStorage.getItem("pending_player");
+          
+          if (pendingScore) {
+            await fetch("/api/leaderboard", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ 
+                playerName: pendingPlayer || "HR_Guest", 
+                score: parseInt(pendingScore, 10) 
+              })
+            });
+            localStorage.removeItem("pending_score");
+            localStorage.removeItem("pending_player");
+          }
+
           setIsUnlocked(true);
           sessionStorage.setItem("vault_session", "active");
           window.dispatchEvent(new Event("authStateChanged"));
@@ -195,25 +295,35 @@ export default function Vault() {
         setErrorMsg(data.error || "Authentication failed.");
       }
     } catch (error) {
-      setErrorMsg("Network error. Please try again.");
+      setErrorMsg("Network error.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleOAuthClick = (provider: string) => {
-    setErrorMsg(
-      language === "en" 
-        ? `${provider} OAuth integration requires Supabase config. Please use email.` 
-        : `ระบบล็อกอินด้วย ${provider} ต้องตั้งค่า API Key ก่อน กรุณาใช้อีเมล`
-    );
+  const handleOAuthClick = async (provider: "github" | "google") => {
+    setErrorMsg("");
+    try {
+      localStorage.setItem("oauth_return_scroll", window.scrollY.toString());
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: provider,
+        options: {
+          redirectTo: window.location.origin, 
+        },
+      });
+      if (error) throw error;
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        setErrorMsg("OAuth Error: " + error.message);
+      } else {
+        setErrorMsg("OAuth Error: Connection failed.");
+      }
+    }
   };
 
-  const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
-    setIsUnlocked(false);
-    sessionStorage.removeItem("vault_session");
-    window.dispatchEvent(new Event("authStateChanged"));
+  const handleLogout = () => {
+    window.dispatchEvent(new Event("triggerVaultLogout"));
     handleCloseModal(); 
   };
 
@@ -224,7 +334,6 @@ export default function Vault() {
 
     return createPortal(
       <>
-        {/* ===================== AUTH MODAL ===================== */}
         <div 
           className={`fixed inset-0 bg-black/65 backdrop-blur-[4px] flex items-center justify-center p-5 transition-all duration-250 ${isAuthOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
           style={{ zIndex: 99998 }}
@@ -248,10 +357,10 @@ export default function Vault() {
 
             <form onSubmit={handleAuthSubmit}>
               <div className="flex gap-2.5 mb-4">
-                <button type="button" onClick={() => handleOAuthClick("GitHub")} className="flex-1 bg-[var(--bg-panel-2)] border border-[var(--edge)] text-[var(--text)] rounded-[var(--radius)] p-2.5 font-mono text-[0.78rem] cursor-pointer transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]">
+                <button type="button" onClick={() => handleOAuthClick("github")} className="flex-1 bg-[var(--bg-panel-2)] border border-[var(--edge)] text-[var(--text)] rounded-[var(--radius)] p-2.5 font-mono text-[0.78rem] cursor-pointer transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]">
                   ◐ GitHub
                 </button>
-                <button type="button" onClick={() => handleOAuthClick("Google")} className="flex-1 bg-[var(--bg-panel-2)] border border-[var(--edge)] text-[var(--text)] rounded-[var(--radius)] p-2.5 font-mono text-[0.78rem] cursor-pointer transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]">
+                <button type="button" onClick={() => handleOAuthClick("google")} className="flex-1 bg-[var(--bg-panel-2)] border border-[var(--edge)] text-[var(--text)] rounded-[var(--radius)] p-2.5 font-mono text-[0.78rem] cursor-pointer transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]">
                   G Google
                 </button>
               </div>
@@ -345,7 +454,6 @@ export default function Vault() {
           </div>
         </div>
 
-        {/* ===================== VAULT DETAIL PAGE (Modular Architecture) ===================== */}
         <div 
           className={`fixed inset-0 bg-[var(--bg)] overflow-y-auto transition-all duration-300 ${activeProject ? "opacity-100 pointer-events-auto translate-y-0" : "opacity-0 pointer-events-none translate-y-2.5"}`}
           style={{ zIndex: 99997 }} 
@@ -384,19 +492,31 @@ export default function Vault() {
               <h1 className="text-[clamp(1.9rem,4vw,3rem)] font-bold tracking-tight mb-2.5 leading-tight">{activeProject.title[language]}</h1>
               <div className="font-mono text-[0.85rem] text-[var(--accent-2)] mb-7">{activeProject.type}</div>
               
-              {/* 📌 หน้าจอจำลองที่กำลังเตรียมโหลดข้อมูล */}
-              <div className="border border-[var(--edge)] rounded-lg bg-[var(--bg-panel)] min-h-[340px] flex flex-col items-center justify-center gap-3.5 text-center p-10 mb-7 shadow-sm">
-                <div className="text-[2.4rem]">{activeProject.stageBig}</div>
-                <div className="font-mono text-[0.8rem] text-[var(--text-dim)] max-w-[460px]">{activeProject.stageCap[language]}</div>
-              </div>
+              {/* 📌 โปรเจกต์ v01 แสดงผลภาพ Dr. V */}
+              {activeProject.id === "v01" && (
+                <div className="border border-[var(--edge)] rounded-lg bg-[var(--bg-panel)] min-h-[340px] flex flex-col items-center justify-center gap-3.5 text-center p-6 mb-7 shadow-sm overflow-hidden relative">
+                  <img src="/Dr%20V.png" alt="Dr. V Character" onError={(e) => { e.currentTarget.src = "/Dr V.png" }} className="h-[280px] md:h-[320px] w-auto object-contain drop-shadow-xl" />
+                </div>
+              )}
 
-              {/* 📌 Dynamic Component Rendering */}
+              {/* 📌 โปรเจกต์ v02 แสดงผลภาพปกเกม (maw.jpg) เดี่ยวๆ เหมือน Dr. V */}
+              {activeProject.id === "v02" && (
+                <div className="border border-[var(--edge)] rounded-lg bg-[var(--bg-panel)] min-h-[340px] flex flex-col items-center justify-center gap-3.5 text-center p-6 mb-7 shadow-sm overflow-hidden relative">
+                  <img src="/maw.jpg" alt="Make A Witch Poster" onError={(e) => { e.currentTarget.src = "/maw.png" }} className="h-[280px] md:h-[320px] w-auto object-contain drop-shadow-xl rounded-md" />
+                </div>
+              )}
+
+              {/* 📌 โปรเจกต์อื่นๆ ที่ไม่ได้กำหนดรูป (กรณีเผื่ออนาคต) */}
+              {activeProject.id !== "v01" && activeProject.id !== "v02" && (
+                <div className="border border-[var(--edge)] rounded-lg bg-[var(--bg-panel)] min-h-[340px] flex flex-col items-center justify-center gap-3.5 text-center p-10 mb-7 shadow-sm">
+                  <div className="text-[2.4rem]">{activeProject.stageBig}</div>
+                  <div className="font-mono text-[0.8rem] text-[var(--text-dim)] max-w-[460px]">{activeProject.stageCap[language]}</div>
+                </div>
+              )}
+
               <div className="mt-10">
-                {/* 📌 ส่วนแสดงผลงานสำหรับ V01 (YouTube Channels) */}
                 {activeProjectId === "v01" && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    
-                    {/* Channel 1 */}
                     <div className="p-6 border border-[var(--edge)] rounded bg-[var(--bg-panel-2)] text-left flex flex-col">
                       <h3 className="font-mono text-[1.1rem] text-[var(--text)] font-bold mb-3">🎬 YarkRooMai</h3>
                       <p className="font-mono text-[0.8rem] text-[var(--text-dim)] mb-6 flex-1">
@@ -404,42 +524,71 @@ export default function Vault() {
                           ? "Content focusing on narrative storytelling and AI-generated visuals. Leveraging tools like Midjourney, Runway, and CapCut to optimize workflow." 
                           : "ช่องคอนเทนต์เน้นการเล่าเรื่องพร้อมภาพประกอบจาก AI ประยุกต์ใช้เครื่องมือสร้างภาพและตัดต่อด้วย CapCut แบบครบวงจร"}
                       </p>
-                      <a 
-                        href="https://www.youtube.com/@YarkRooMai" 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="bg-[#FF0000] text-white font-mono text-[0.8rem] py-3 rounded text-center transition-all hover:brightness-110 font-bold tracking-wide"
-                      >
-                        YouTube ↗
-                      </a>
+                      <a href="https://www.youtube.com/@YarkRooMai" target="_blank" rel="noopener noreferrer" className="bg-[#FF0000] text-white font-mono text-[0.8rem] py-3 rounded text-center transition-all hover:brightness-110 font-bold tracking-wide">YouTube ↗</a>
                     </div>
-
-                    {/* Channel 2 */}
                     <div className="p-6 border border-[var(--edge)] rounded bg-[var(--bg-panel-2)] text-left flex flex-col">
                       <h3 className="font-mono text-[1.1rem] text-[var(--text)] font-bold mb-3">🎧 InfinitySound365</h3>
                       <p className="font-mono text-[0.8rem] text-[var(--text-dim)] mb-6 flex-1">
                         {language === "en" 
                           ? "A channel dedicated to audio experiences, utilizing AI audio generation tools (like Suno/Whisk) combined with long-format video editing techniques." 
-                          : "ช่องสำหรับการฟังเสียง มุ่งเน้นการสร้างเสียงดนตรีและบรรยากาศด้วย AI (เช่น Suno/Whisk) ควบคู่กับการประมวลผลวิดีโอความยาวหลายชั่วโมง"}
+                          : "ช่องสำหรับการฟังเสียง มุ่งเน้นการสร้างเสียงดนตรีและบรรยากาศด้วย AI ควบคู่กับการประมวลผลวิดีโอความยาวหลายชั่วโมง"}
                       </p>
-                      <a 
-                        href="https://www.youtube.com/@InfinitySound365" 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="bg-[#FF0000] text-white font-mono text-[0.8rem] py-3 rounded text-center transition-all hover:brightness-110 font-bold tracking-wide"
-                      >
-                        YouTube ↗
-                      </a>
+                      <a href="https://www.youtube.com/@InfinitySound365" target="_blank" rel="noopener noreferrer" className="bg-[#FF0000] text-white font-mono text-[0.8rem] py-3 rounded text-center transition-all hover:brightness-110 font-bold tracking-wide">YouTube ↗</a>
                     </div>
                   </div>
                 )}
 
+                {/* 📌 โปรเจกต์ v02: นำภาพ 5 ภาพมาเรียงต่อกันเป็น Gallery ด้านล่าง */}
+                {activeProjectId === "v02" && (
+                  <div className="w-full flex flex-col gap-8 animate-fade-in">
+                    <div className="text-center bg-[var(--bg-panel-2)] border border-[var(--edge)] rounded-lg p-6 shadow-sm">
+                      <h3 className="font-mono text-xl md:text-2xl font-bold text-[var(--text)] flex items-center justify-center gap-3">
+                        <span className="relative flex h-3 w-3">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--good)] opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-3 w-3 bg-[var(--good)]"></span>
+                        </span>
+                        {language === "en" ? "Development Progress Gallery" : "แกลเลอรีความคืบหน้าการพัฒนาเกม"}
+                      </h3>
+                      <p className="font-mono text-[0.85rem] text-[var(--text-dim)] mt-3 max-w-2xl mx-auto leading-relaxed">
+                        {language === "en" 
+                          ? "The interactive WebGL build is currently being optimized for web deployment. In the meantime, explore these latest gameplay and editor screenshots showcasing the combat system, UI integration, and AI behavior." 
+                          : "ตัวเกมเวอร์ชัน WebGL กำลังอยู่ในขั้นตอนปรับแต่งประสิทธิภาพสำหรับการรันบนเว็บ ระหว่างนี้สามารถรับชมภาพตัวอย่างระบบต่อสู้ การจัดวาง UI และพฤติกรรม AI จากเอนจินได้ที่นี่"}
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      {/* ภาพถ่ายหน้าจอที่ 1 (ใหญ่เต็มกรอบ) */}
+                      <div className="md:col-span-2 group relative border border-[var(--edge)] rounded-xl overflow-hidden bg-[var(--bg-panel)] shadow-md">
+                        <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-md border border-white/10 text-white font-mono text-[0.65rem] px-2 py-1 rounded z-10 pointer-events-none">
+                          {language === "en" ? "SCENE VIEW // COMBAT" : "มุมมอง SCENE // ระบบต่อสู้"}
+                        </div>
+                        <div className="overflow-hidden">
+                          <img src="/WitchGamePlay1.jpg" alt="Witch Game Play 1" onError={(e) => { e.currentTarget.src = "/WitchGamePlay1.png" }} className="w-full h-auto object-cover transform transition-transform duration-700 group-hover:scale-[1.03]" />
+                        </div>
+                      </div>
+
+                      {/* ภาพถ่ายหน้าจอที่ 2 - 5 */}
+                      {[2, 3, 4, 5].map((num) => (
+                        <div key={num} className="group relative border border-[var(--edge)] rounded-xl overflow-hidden bg-[var(--bg-panel)] shadow-sm">
+                          <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-md border border-white/10 text-white font-mono text-[0.65rem] px-2 py-1 rounded z-10 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                            {language === "en" ? `SCREENSHOT // 0${num}` : `ภาพถ่ายหน้าจอ // 0${num}`}
+                          </div>
+                          <div className="overflow-hidden h-full">
+                            <img src={`/WitchGamePlay${num}.jpg`} alt={`Witch Game Play ${num}`} onError={(e) => { e.currentTarget.src = `/WitchGamePlay${num}.png` }} className="w-full h-full object-cover transform transition-transform duration-700 group-hover:scale-[1.05]" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 📌 คืนค่า v02 ให้กลับไปเรียกใช้ WitchGameBuild */}
                 {activeProjectId === "v02" && (
                   <div className="w-full">
                     <WitchGameBuild />
                   </div>
                 )}
-
+                
                 {activeProjectId === "v03" && (
                   <div className="p-10 border border-dashed border-[var(--edge)] rounded bg-[var(--bg-panel-2)] text-center flex flex-col items-center justify-center min-h-[200px]">
                     <div className="text-3xl mb-3 animate-pulse opacity-80">🚧</div>
@@ -450,7 +599,6 @@ export default function Vault() {
                   </div>
                 )}
               </div>
-
             </div>
           )}
         </div>
@@ -474,7 +622,7 @@ export default function Vault() {
             <p className="text-[var(--text-dim)] leading-relaxed">
               {language === "en" 
                 ? <>The items above are for public display only. Full projects, source code, and works-in-progress are locked behind the authentication wall. This area is purpose-built to showcase secure user authentication and <b>protected routes</b>.</>
-                : <>ผลงานด้านบนเป็นเพียงส่วนที่จัดแสดงสาธารณะ โปรเจกต์ตัวเต็ม, ซอร์สโค้ด, และผลงานที่กำลังอยู่ระหว่างการพัฒนา จะถูกป้องกันไว้หลังระบบล็อกอิน — พื้นที่ส่วนนี้ถูกออกแบบมาโดยเฉพาะเพื่อสาธิตระบบ <b>Authentication</b> ที่ปลอดภัยและการทำ <b>Protected routes</b></>}
+                : <>ผลงานด้านบนเป็นเพียงส่วนที่จัดแสดงสาธารณะ โปรเจกต์ตัวเต็ม, ซอร์สโค้ด, และผลงานที่กำลังอยู่ระหว่างการพัฒนา จะถูกป้องกันไว้หลังระบบล็อกอิน — พื้นที่ส่วนนี้ถูกออกแบบมาโดยเฉพาะเพื่อสาธิตระบบ <b>Authentication</b> ที่ปลอดภัยและการทำ <b>Protected routes</b> ครับ</>}
             </p>
           </div>
 
@@ -486,7 +634,7 @@ export default function Vault() {
               <span>
                 {language === "en" 
                   ? (isUnlocked ? "welcome back · click a card to open it" : "hidden projects & works-in-progress · sign in to view")
-                  : (isUnlocked ? "ยินดีต้อนรับกลับ · คลิกที่กล่องเพื่อเปิดดูโปรเจกต์" : "ผลงานที่ถูกซ่อน & โปรเจกต์ที่กำลังพัฒนา · ลงชื่อเข้าใช้เพื่อดูเนื้อหา")}
+                  : (isUnlocked ? "ยินดีต้อนรับกลับ · คลิกที่กล่องเพื่อเปิดดูโปรเจกต์" : "ผลงานที่ถูกซ่อน & ระบบที่กำลังพัฒนา · ลงชื่อเข้าใช้เพื่อดูเนื้อหา")}
               </span>
               {isUnlocked && (
                 <div className="ml-auto flex items-center gap-2">
