@@ -162,12 +162,26 @@ export default function Vault() {
     window.addEventListener("triggerVaultLogout", doMasterLogout);
 
     const checkSession = async () => {
-      const savedSession = sessionStorage.getItem("vault_session");
-      if (savedSession === "active") setIsUnlocked(true);
+      // 1. เช็คว่า "ความจำระยะสั้น" ของแท็บนี้ยังอยู่ไหม
+      const isSessionActive = sessionStorage.getItem("vault_session") === "active";
       
+      // 2. ไปถาม Supabase ว่ามี "บัตรผ่าน" ตกค้างอยู่หลังบ้านไหม
       const { data: { session } } = await supabase.auth.getSession();
-      if (session && savedSession !== "active") {
-        supabase.auth.refreshSession();
+      
+      if (session) {
+        if (isSessionActive) {
+          // ถ้าความจำยังอยู่ (เช่น เดินท่องเว็บปกติ) -> ปล่อยผ่านและต่ออายุบัตร
+          supabase.auth.refreshSession();
+          setIsUnlocked(true);
+        } else {
+          // 🚨 ถ้าบัตรหลังบ้านมี แต่ความจำในแท็บหายไป (เช่น เพิ่งเปิดแท็บใหม่ / รีสตาร์ทเบราว์เซอร์)
+          // 💥 สไตล์แอปธนาคาร: บังคับเตะออกทันที!
+          await doMasterLogout();
+        }
+      } else {
+        // ถ้าไม่มีบัตรผ่านเลย ก็เคลียร์หน้าบ้านให้ตรงกัน
+        sessionStorage.removeItem("vault_session");
+        setIsUnlocked(false);
       }
     };
     checkSession();
