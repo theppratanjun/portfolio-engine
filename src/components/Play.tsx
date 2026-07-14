@@ -463,15 +463,15 @@ export default function Play() {
                 </tr>
               ) : (
                 leaders.map((leader, index) => (
-                  <tr key={leader.id} className={`border-t border-[var(--edge)] transition-colors hover:bg-[var(--bg-panel-2)] ${leader.isMe ? "bg-[rgba(33,230,193,0.05)]" : ""}`}>
+                  <tr key={leader.id} className={`border-t border-[var(--edge)] transition-colors hover:bg-[var(--bg-panel-2)] ${leader.isMe && isLoggedIn ? "bg-[rgba(33,230,193,0.05)]" : ""}`}>
                     <td className="py-3 px-5 text-[var(--text-dim)]">#{index + 1}</td>
                     {/* 📌 3. แก้ไขบรรทัดนี้: เพิ่มเงื่อนไขเปลี่ยนสีตัวหนังสือตามธีม และแปลเป็น "คุณ" */}
                     <td className="py-3 px-5 font-bold text-[var(--text)]">
-                      {leader.playerName} {leader.isMe && <span className={`text-[0.6rem] bg-[var(--accent-2)] px-1.5 py-0.5 rounded ml-2 ${theme === 'light' ? 'text-white' : 'text-[#04201b]'}`}>{language === "en" ? "YOU" : "คุณ"}</span>}
+                      {leader.playerName} {leader.isMe && isLoggedIn && <span className={`text-[0.6rem] bg-[var(--accent-2)] px-1.5 py-0.5 rounded ml-2 ${theme === 'light' ? 'text-white' : 'text-[#04201b]'}`}>{language === "en" ? "YOU" : "คุณ"}</span>}
                     </td>
                     <td className="py-3 px-5 text-[var(--good)]">{leader.score.toLocaleString()}</td>
                     <td className="py-3 px-5 text-right">
-                      {leader.isMe ? (
+                      {leader.isMe && isLoggedIn ? (
                         <button 
                           onClick={handleDeleteScore}
                           className="text-[0.7rem] text-[var(--danger)] hover:underline opacity-80 hover:opacity-100"
