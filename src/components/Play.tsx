@@ -31,7 +31,8 @@ export default function Play() {
 
   const fetchLeaderboard = useCallback(async () => {
     try {
-      const res = await fetch('/api/leaderboard');
+      // 📌 เพิ่ม { cache: 'no-store' } เพื่อสั่งเบราว์เซอร์ว่า "ห้ามจำของเก่าเด็ดขาด ให้ดึงข้อมูลสดใหม่เสมอ!"
+      const res = await fetch('/api/leaderboard', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         setLeaders(data);

@@ -13,24 +13,17 @@ export async function POST() {
       if (session) {
         // 📝 บันทึกลง AuditLog ว่าออกจากระบบ
         await prisma.auditLog.create({
-          data: { userId: session.userId, action: 'LOGOUT', details: 'User logged out securely' }
+          data: { userId: session.userId, action: 'LOGOUT', details: 'User logged out securely (Tab Closed)' }
         });
         // ทำลาย Session ในฐานข้อมูล
         await prisma.session.delete({ where: { sessionToken } });
       }
     }
 
-    const response = NextResponse.json({ success: true });
-    
-    // 🔒 สั่งเบราว์เซอร์ให้ "ทำลาย" HttpOnly Cookie ทิ้งทันที
-    response.cookies.set({
-      name: 'portfolio_session',
-      value: '',
-      expires: new Date(0), // เซ็ตให้หมดอายุในอดีต (ลบทิ้ง)
-      path: '/',
-    });
+    // 🔒 สั่งทำลาย Cookie ด้วยคำสั่งของ Next.js โดยตรง (ชัวร์ 100%)
+    cookieStore.delete('portfolio_session');
 
-    return response;
+    return NextResponse.json({ success: true, message: "Logged out completely" });
   } catch (error) {
     console.error("Logout Error:", error);
     return NextResponse.json({ error: "Logout failed" }, { status: 500 });
