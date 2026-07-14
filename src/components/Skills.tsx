@@ -49,14 +49,14 @@ export default function Skills() {
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting) {
-          setIsVisible(true);
-          observer.disconnect();
-        }
+        // 📌 เปลี่ยนมาใช้บรรทัดนี้: ถ้าเลื่อนมาเจอให้เป็น true (หลอดวิ่ง) ถ้าหลุดจอไปให้เป็น false (หลอดหดกลับไปรอ)
+        setIsVisible(entries[0].isIntersecting);
       },
       { threshold: 0.12 }
     );
+    
     if (sectionRef.current) observer.observe(sectionRef.current);
+    
     return () => observer.disconnect();
   }, []);
 
