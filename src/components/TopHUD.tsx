@@ -60,7 +60,9 @@ export default function TopHUD() {
         }`}>
         <div className={`max-w-[1180px] mx-auto w-full px-6 flex items-center justify-between transition-all duration-250 ${isScrolled ? "h-[52px]" : "h-[58px]"}`}>
           
-          <button className="font-mono font-bold text-[0.95rem] tracking-wide flex items-center gap-2 text-[var(--text)] bg-transparent border-none cursor-pointer" onClick={() => window.scrollTo({top: 0, behavior: 'smooth'})}>
+          <button className="font-mono font-bold text-[0.95rem] tracking-wide flex items-center gap-2 text-[var(--text)] bg-transparent border-none cursor-pointer" onClick={() => {window.scrollTo({top: 0, behavior: 'smooth'}); // เลื่อนขึ้นบน
+              window.history.pushState(null, "", window.location.pathname); // 📌 เคลียร์ # ออกจาก URL เพื่อป้องกันการรีเฟรชแล้วติดที่เดิม
+            }}>
             <span className="w-[9px] h-[9px] bg-[var(--accent)] rounded-full shadow-[0_0_12px_var(--accent)] animate-pulse"></span>
             Theppratan<span className="text-[var(--text-faint)]">.dev</span>
           </button>

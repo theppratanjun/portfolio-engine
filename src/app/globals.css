@@ -18,6 +18,7 @@
   --accent-2: #21e6c1;
   --accent-3: #ffd23f;
   --good: #3ddc84;
+  --danger: #ef4444; /* 📌 เพิ่มสีแดง สำหรับปุ่ม Logout (โหมด Dark) */
   --radius: 4px;
 }
 
@@ -32,6 +33,7 @@
   --text-faint: #8a93a1;
   --accent: #e0157a;
   --accent-2: #0a9e88;
+  --danger: #dc2626; /* 📌 เพิ่มสีแดง สำหรับปุ่ม Logout (โหมด Light) */
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }

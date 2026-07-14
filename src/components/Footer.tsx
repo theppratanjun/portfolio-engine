@@ -97,9 +97,9 @@ export default function Footer() {
 
       </div>
 
-      {/* 📌 ปรับ z-index เป็น z-[9999] เพื่อให้ลอยทะลุหน้าต่าง Vault หรือทุกสิ่งบนเว็บ */}
+      {/* 📌 เปลี่ยนบรรทัด className ของ Easter Egg ตรง translate ให้เพิ่ม opacity และ pointer-events เข้าไปครับ */}
       <div 
-        className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] bg-[var(--accent)] text-white font-mono text-[0.82rem] py-[13px] px-[22px] rounded-[var(--radius)] shadow-[0_10px_40px_rgba(0,0,0,0.5)] transition-transform duration-400 ${showEasterEgg ? "translate-y-0" : "translate-y-[120px]"}`}
+        className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] bg-[var(--accent)] text-white font-mono text-[0.82rem] py-[13px] px-[22px] rounded-[var(--radius)] shadow-[0_10px_40px_rgba(0,0,0,0.5)] transition-all duration-400 ${showEasterEgg ? "translate-y-0 opacity-100 pointer-events-auto" : "translate-y-[120px] opacity-0 pointer-events-none"}`}
       >
         🎮 {language === "en" ? "Konami detected — extra life granted. (You found the easter egg.)" : "พบสูตร Konami — เพิ่มชีวิตพิเศษ 1 EA (คุณพบ Easter Egg แล้ว)"}
       </div>
