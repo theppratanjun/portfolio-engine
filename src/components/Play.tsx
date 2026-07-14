@@ -53,9 +53,15 @@ export default function Play() {
 
     window.addEventListener("authStateChanged", checkAuth);
     
+    // 📌 รับฟังการแจ้งเตือนว่าโปรไฟล์โดนอัปเดต ให้ดึงตารางคะแนนใหม่ทันที!
+    window.addEventListener("profileUpdated", fetchLeaderboard);
+    
     return () => {
       clearTimeout(init);
       window.removeEventListener("authStateChanged", checkAuth);
+      
+      // 📌 อย่าลืมทำลายการรับฟังเมื่อคอมโพเนนต์ถูกปิด
+      window.removeEventListener("profileUpdated", fetchLeaderboard);
     };
   }, [fetchLeaderboard]);
 

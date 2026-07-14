@@ -78,6 +78,8 @@ export default function AccountSettings() {
       
       if (res.ok) {
         setMessage({ text: language === "en" ? "Profile updated successfully." : "อัปเดตโปรไฟล์สำเร็จ", type: "success" });
+        // 📌 ยิงสัญญาณบอกทุก Component ว่าเปลี่ยนชื่อสำเร็จแล้ว!
+        window.dispatchEvent(new Event("profileUpdated"));
       } else {
         setMessage({ text: data.error, type: "error" });
       }
