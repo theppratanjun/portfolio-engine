@@ -21,9 +21,12 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       if (savedLang) {
         setLanguage(savedLang);
       } else {
-        const browserLang = navigator.language.toLowerCase().startsWith("th") ? "th" : "en";
-        setLanguage(browserLang);
-        localStorage.setItem("portfolio_lang", browserLang);
+        //const browserLang = navigator.language.toLowerCase().startsWith("th") ? "th" : "en";
+        // 📌 ลบการเช็ค navigator.language ออก แล้วบังคับเป็น "en" ทันที
+        const initialLang = "en";
+        
+        setLanguage(initialLang);
+        localStorage.setItem("portfolio_lang", initialLang);
       }
     }, 10);
 

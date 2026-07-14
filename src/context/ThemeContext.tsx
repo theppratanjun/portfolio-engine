@@ -24,9 +24,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         setThemeState(savedTheme);
         document.documentElement.setAttribute("data-theme", savedTheme);
       } else {
+        /*
         // 2. ถ้าไม่เคยเข้าเว็บนี้มาก่อน ให้เช็คว่ามือถือ/คอมพิวเตอร์ตั้ง Dark Mode ไว้ไหม
         const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
         const initialTheme = prefersDark ? "dark" : "light";
+        */
+        // 📌 ลบการเช็ค prefers-color-scheme ออก แล้วบังคับเป็น "light" ทันที
+        const initialTheme = "light";
         
         setThemeState(initialTheme);
         document.documentElement.setAttribute("data-theme", initialTheme);
