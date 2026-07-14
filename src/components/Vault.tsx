@@ -164,17 +164,30 @@ export default function Vault() {
     const checkSession = async () => {
       const isSessionActive = sessionStorage.getItem("vault_session") === "active";
       
-      if (!isSessionActive) {
-        // 🚨 ถ้าความจำแท็บหาย (เพิ่งเปิดแท็บใหม่) บังคับเตะออกและล้างคุกกี้ทันที!
+      // 📌 ตรวจจับเพิ่ม: ถ้ากำลัง "Redirect กลับมา" จากการล็อกอินผ่าน GitHub/Google
+      const isOAuthCallback = window.location.hash.includes("access_token") || window.location.search.includes("code=");
+
+      if (!isSessionActive && !isOAuthCallback) {
+        // 🚨 1. ปิดแท็บไปแล้วเปิดใหม่ หรือปิดเบราว์เซอร์ (ความจำหายไป) -> เตะออก 100%
         await doMasterLogout();
-      } else {
-        // ถ้าแท็บเดิมความจำยังอยู่ ค่อยไปเช็คว่าบัตรผ่านหลังบ้านหมดอายุหรือยัง
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          supabase.auth.refreshSession();
-          setIsUnlocked(true);
-        } else {
-          await doMasterLogout();
+      } else if (isSessionActive) {
+        // 🔄 2. การกด F5 รีเฟรชหน้าเว็บ (sessionStorage ยังอยู่)
+        try {
+          // ยิงไปถาม API ของเราแทนว่า Cookie ยังอยู่ดีไหม (รองรับทั้ง Email และ OAuth)
+          const res = await fetch("/api/user/settings");
+          if (res.ok) {
+            // ✅ คุกกี้ยังอยู่ ปลดล็อกหน้าเว็บได้เลย
+            setIsUnlocked(true);
+            
+            // แอบต่ออายุให้บัญชีกลุ่ม OAuth แบบเงียบๆ เบื้องหลัง
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) supabase.auth.refreshSession();
+          } else {
+            // ❌ คุกกี้หมดอายุ หรือโดนลบไปแล้ว
+            await doMasterLogout();
+          }
+        } catch (error) {
+          console.error("Session check error", error);
         }
       }
     };
