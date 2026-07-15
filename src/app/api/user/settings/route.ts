@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
 import bcrypt from 'bcryptjs';
 
-// 📌 1. ดึงข้อมูลโปรไฟล์ปัจจุบันมาแสดง
+// 📌 1. ดึงข้อมูลโปรไฟล์ปัจจุบัน + ต่ออายุ Session (Sliding Session)
 export async function GET() {
   try {
     const cookieStore = await cookies();
@@ -21,11 +21,35 @@ export async function GET() {
 
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-    return NextResponse.json({
+    // 🔄 เลื่อนเวลาหมดอายุออกไปอีก 2 ชั่วโมง นับจากวินาทีที่เรียก API นี้
+    const newExpiresAt = new Date(Date.now() + 1000 * 60 * 60 * 2);
+    
+    // อัปเดตเวลาใหม่ในฐานข้อมูล
+    await prisma.session.update({
+      where: { sessionToken },
+      data: { expiresAt: newExpiresAt }
+    });
+
+    // สร้าง Response ตอบกลับไปหน้าเว็บ
+    const response = NextResponse.json({
       email: user.email,
       playerName: user.leaderboard?.playerName || user.email.split('@')[0],
-      isOAuth: user.passwordHash === "OAUTH_LOGIN" // 📌 ส่งบอกหน้าบ้านว่าเป็น Google/GitHub
+      isOAuth: user.passwordHash === "OAUTH_LOGIN" 
     });
+
+    // 🛡️ ประทับตรา Cookie ใหม่เพื่อต่ออายุในเบราว์เซอร์ของผู้ใช้
+    response.cookies.set({
+      name: 'portfolio_session',
+      value: sessionToken,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      expires: newExpiresAt,
+      path: '/',
+    });
+
+    return response;
+    
   } catch (error) {
     console.error("Settings GET Error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

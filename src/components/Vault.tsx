@@ -1,7 +1,7 @@
 // src/components/Vault.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useLanguage } from "@/context/LanguageContext";
 import dynamic from "next/dynamic";
@@ -76,6 +76,69 @@ export default function Vault() {
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [isRegisterMode, setIsRegisterMode] = useState(false);
+  // 📌 State สำหรับระบบ Idle Timeout (5 นาที)
+  const [isIdleWarningOpen, setIsIdleWarningOpen] = useState(false);
+  const [idleCountdown, setIdleCountdown] = useState(30);
+  const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (!isUnlocked) {
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
+      return;
+    }
+
+    // เปลี่ยนจาก 4.5 * 60 * 1000 เป็นตัวเลขมิลลิวินาทีของ 4 นาที 20 วินาที
+    const IDLE_LIMIT = 260000; // (4 นาที 20 วินาที = 260,000 ms)
+    const COUNTDOWN_SECONDS = 40; // นับถอยหลัง 40 วิ (รวมเป็น 5 นาทีเป๊ะ)
+
+    const resetIdleTimer = () => {
+      if (isIdleWarningOpen) return; // ถ้าเตือนอยู่ บังคับให้ต้องกดปุ่มเท่านั้น
+      
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = setTimeout(() => {
+        setIsIdleWarningOpen(true);
+        setIdleCountdown(COUNTDOWN_SECONDS);
+      }, IDLE_LIMIT);
+    };
+
+    // ตรวจจับทุกการกระทำของผู้ใช้
+    const events = ['mousemove', 'keydown', 'scroll', 'click', 'touchstart'];
+    events.forEach(e => window.addEventListener(e, resetIdleTimer));
+    resetIdleTimer();
+
+    return () => {
+      events.forEach(e => window.removeEventListener(e, resetIdleTimer));
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    };
+  }, [isUnlocked, isIdleWarningOpen]);
+
+  // 📌 ระบบนับถอยหลังตอนป๊อปอัปเด้ง
+  useEffect(() => {
+    if (isIdleWarningOpen) {
+      countdownTimerRef.current = setInterval(() => {
+        setIdleCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(countdownTimerRef.current!);
+            window.dispatchEvent(new Event("triggerVaultLogout"));
+            setIsIdleWarningOpen(false);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
+    };
+  }, [isIdleWarningOpen]);
+
+  const handleStayLoggedIn = () => {
+    setIsIdleWarningOpen(false);
+    // แอบยิงไปบอกหลังบ้านว่ายังอยู่ เพื่อต่ออายุ Cookie เงียบๆ
+    fetch("/api/user/settings").catch(() => {});
+  };
 
   useEffect(() => {
     const mountTimer = setTimeout(() => {
@@ -157,6 +220,7 @@ export default function Vault() {
       await supabase.auth.signOut(); 
       sessionStorage.removeItem("vault_session"); 
       setIsUnlocked(false);
+      setIsIdleWarningOpen(false); // 📌 ย้ายมาสั่งปิดป๊อปอัปตรงนี้แทน!
       window.dispatchEvent(new Event("authStateChanged"));
     };
     window.addEventListener("triggerVaultLogout", doMasterLogout);
@@ -199,6 +263,7 @@ export default function Vault() {
       if (savedSession !== "active") {
         setActiveProjectId(null);
         setIsAuthOpen(false);
+        setIsIdleWarningOpen(false); // 📌 และสั่งปิดเผื่อไว้ตรงนี้ด้วย
       }
     };
     window.addEventListener("authStateChanged", handleAuthStateChanged);
@@ -355,6 +420,41 @@ export default function Vault() {
 
     return createPortal(
       <>
+        {/* 📌 ป๊อปอัปเตือนผู้ใช้หากไม่มีกิจกรรมเคลื่อนไหวในหน้าเว็บ (Idle Timeout) */}
+        {isIdleWarningOpen && (
+          <div 
+            className="fixed inset-0 bg-black/85 backdrop-blur-[6px] flex items-center justify-center p-5 animate-fade-in pointer-events-auto"
+            style={{ zIndex: 999999 }}
+          >
+            <div className="w-full max-w-[340px] bg-[var(--bg-panel)] border border-[var(--danger)] rounded-lg p-6 text-center shadow-[0_0_40px_rgba(239,68,68,0.15)]">
+              <div className="text-4xl mb-4 animate-bounce">⚠️</div>
+              <h3 className="text-[1.1rem] font-bold font-mono text-[var(--text)] mb-2">
+                {language === "en" ? "Are you still there?" : "คุณยังใช้งานอยู่หรือไม่?"}
+              </h3>
+              <p className="text-[var(--text-dim)] text-[0.8rem] font-mono mb-6 leading-relaxed">
+                {language === "en" 
+                  ? "For your security, you will be logged out in "
+                  : "เพื่อความปลอดภัย ระบบจะทำการล็อกเอาท์อัตโนมัติใน "}
+                <span className="text-[var(--danger)] font-bold text-[1.2rem] mx-1">{idleCountdown}</span>
+                {language === "en" ? " seconds." : " วินาที"}
+              </p>
+              <div className="flex gap-3">
+                <button 
+                  onClick={handleLogout}
+                  className="flex-1 bg-[var(--bg-panel-2)] border border-[var(--edge)] text-[var(--text-dim)] font-mono text-[0.75rem] py-2.5 rounded hover:text-[var(--danger)] hover:border-[var(--danger)] transition-all"
+                >
+                  {language === "en" ? "LOG OUT" : "ออกจากระบบ"}
+                </button>
+                <button 
+                  onClick={handleStayLoggedIn}
+                  className="flex-1 bg-[var(--accent)] text-white font-mono text-[0.75rem] py-2.5 rounded hover:brightness-110 transition-all font-bold tracking-wide"
+                >
+                  {language === "en" ? "STAY LOGGED IN" : "ใช้งานต่อ"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         <div 
           className={`fixed inset-0 bg-black/65 backdrop-blur-[4px] flex items-center justify-center p-5 transition-all duration-250 ${isAuthOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
           style={{ zIndex: 99998 }}

@@ -49,7 +49,7 @@ export async function POST(request: Request) {
 
     // 4. สร้าง Session Token (ตั๋วผ่านประตูที่เดาไม่ได้)
     const sessionToken = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24); // หมดอายุใน 24 ชั่วโมง
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 2); // 📌 เปลี่ยนเป็น 2 ชั่วโมง
 
     await prisma.session.create({
       data: {
