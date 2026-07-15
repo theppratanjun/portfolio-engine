@@ -28,6 +28,10 @@ export default function AccountSettings() {
     const timer = setTimeout(() => setMounted(true), 10);
     
     const handleOpen = () => {
+      // 📌 1. ป้องกันปุ่มผีหลอก: เช็คก่อนเปิดว่า Session ยังอยู่จริงๆ ไหม
+      // ถ้าไม่มี (เช่น เพิ่งโดนเตะออกไปเมื่อเสี้ยววินาทีที่แล้ว) ให้บล็อกการเปิดทันที!
+      if (sessionStorage.getItem("vault_session") !== "active") return;
+
       setIsOpen(true);
       setTab("profile");
       setMessage(null);
@@ -42,11 +46,20 @@ export default function AccountSettings() {
         .finally(() => setIsFetching(false));
     };
 
+    // 📌 2. ดักฟัง Event: ถ้าระบบล็อกเอาท์ (โดนเตะออก) ให้บังคับปิดหน้าต่างตั้งค่าลงทันที
+    const handleForceClose = () => {
+      if (sessionStorage.getItem("vault_session") !== "active") {
+        setIsOpen(false);
+      }
+    };
+
     window.addEventListener("openAccountSettings", handleOpen);
+    window.addEventListener("authStateChanged", handleForceClose);
     
     return () => {
       clearTimeout(timer);
       window.removeEventListener("openAccountSettings", handleOpen);
+      window.removeEventListener("authStateChanged", handleForceClose);
     };
   }, []);
 
