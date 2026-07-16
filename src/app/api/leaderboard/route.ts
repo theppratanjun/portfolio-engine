@@ -48,13 +48,20 @@ export async function POST(request: Request) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { playerName, score } = await request.json();
-    const finalPlayerName = playerName || session.user.email.split('@')[0];
 
     // 📌 ค้นหาว่ามีชื่ออยู่ในกระดานไหม (ถ้าเคยลบไปแล้ว ค่านี้จะเป็น null)
     const existingRecord = await prisma.leaderboard.findUnique({ where: { userId: session.userId } });
 
+    let finalPlayerName = playerName;
+
     if (existingRecord) {
-      // ✅ กรณีที่มีอยู่แล้ว: ให้อัปเดตคะแนน (ถ้าสูงกว่าเดิม) และอัปเดตชื่อ
+      // ✅ กรณีที่มีประวัติอยู่แล้ว: 
+      // ถ้าไม่ได้พิมพ์ชื่อมา หรือระบบหน้าบ้านส่ง HR_Guest มาอุดรอยรั่ว
+      // ให้ "ใช้ชื่อเดิมในฐานข้อมูล" เพื่อป้องกันชื่อเดิมหาย!
+      if (!playerName || playerName === "HR_Guest") {
+        finalPlayerName = existingRecord.playerName;
+      }
+
       const newScore = Math.max(existingRecord.score, score);
       const updatedRecord = await prisma.leaderboard.update({
         where: { id: existingRecord.id },
@@ -67,7 +74,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, data: updatedRecord });
       
     } else {
-      // ✅ กรณีที่เล่นครั้งแรก หรือ "เคยลบสถิติตัวเองทิ้งไปแล้ว": ให้สร้างใหม่ไปเลย!
+      // ✅ กรณีที่เล่นครั้งแรก หรือ "เคยลบสถิติตัวเองทิ้งไปแล้ว":
+      // ถ้าไม่ได้พิมพ์ชื่อมา ให้เอาชื่อจาก Email มาใช้แทน HR_Guest
+      if (!playerName || playerName === "HR_Guest") {
+        finalPlayerName = session.user.email.split('@')[0];
+      }
+
       const newRecord = await prisma.leaderboard.create({
         data: {
           userId: session.userId,
