@@ -366,7 +366,7 @@ export default function Play() {
           
           {!hasStarted && !isGameOver && (
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center p-6 z-10 animate-fade-in">
-              <h3 className="text-2xl md:text-3xl font-mono font-bold text-[var(--text)] mb-6 tracking-widest text-center shadow-black drop-shadow-md">
+              <h3 className="text-2xl md:text-3xl font-mono font-bold text-white mb-6 tracking-widest text-center shadow-black drop-shadow-md">
                 {language === "en" ? "HR CHILL ZONE" : "โซนผ่อนคลาย HR"}
               </h3>
               <button 
