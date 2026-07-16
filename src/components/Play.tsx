@@ -439,9 +439,14 @@ export default function Play() {
           <h3 className="font-mono font-bold text-[0.9rem] text-[var(--text)]">
             🏆 HR GLOBAL LEADERBOARD
           </h3>
-          <span className="font-mono text-[0.7rem] text-[var(--text-dim)]">
-            {language === "en" ? "Top 10 High Scores" : "10 อันดับสถิติสูงสุด"}
-          </span>
+          <div className="flex flex-col items-end">
+            <span className="font-mono text-[0.7rem] text-[var(--text-dim)]">
+              {language === "en" ? "Top 10 High Scores" : "10 อันดับสถิติสูงสุด"}
+            </span>
+            <span className="font-mono text-[0.6rem] text-[var(--text-faint)] mt-0.5">
+              {language === "en" ? "* Tiebreaker: Newest score first" : "* กรณีคะแนนเท่ากัน: สถิติล่าสุดจะอยู่สูงกว่า"}
+            </span>
+          </div>
         </div>
         
         <div className="overflow-x-auto">
