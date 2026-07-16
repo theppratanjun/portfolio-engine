@@ -15,7 +15,11 @@ export async function GET() {
     }
 
     const leaders = await prisma.leaderboard.findMany({
-      orderBy: { score: 'desc' },
+      orderBy: [
+        { score: 'desc' },       // 1. เรียงคะแนนจากมากไปน้อยก่อน ข้อ 2 ให้เลือกใช้ได้เลย
+        //{ updatedAt: 'asc' }     // 2. ถ้าคะแนนเท่ากัน ให้คนที่อัปเดตคะแนน "ก่อน (asc)" อยู่ตำแหน่งสูงกว่า
+        { updatedAt: 'desc' }    // 2. 📌 ถ้าคะแนนเท่ากัน ให้คนทำคะแนนได้ "ล่าสุด (desc)" อยู่ตำแหน่งสูงกว่า
+      ],
       take: 10,
     });
 
