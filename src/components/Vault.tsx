@@ -17,6 +17,12 @@ const WitchGameBuild = dynamic(() => import("./vault-projects/WitchGameBuild"), 
   ssr: false 
 });
 
+// 📌 แทรกบรรทัดนี้เพิ่มเข้าไปเพื่อดึงไฟล์ VR มาใช้งาน
+const VrAssemblyBuild = dynamic(() => import("./vault-projects/VrAssemblyBuild"), {
+  loading: () => <div className="p-10 text-center font-mono text-[var(--text-dim)]">Loading Component Data...</div>,
+  ssr: false 
+});
+
 const VAULT_PROJECTS = [
   {
     id: "v01",
@@ -48,6 +54,20 @@ const VAULT_PROJECTS = [
   },
   {
     id: "v03",
+    title: { en: "VR Motorcycle Assembly", th: "ระบบจำลองการประกอบรถมอเตอร์ไซค์ (VR)" },
+    type: "// Unity · VR (Meta Quest) · Web Dashboard",
+    desc: {
+      en: ["A Virtual Reality simulation for learning how to assemble and disassemble motorcycles.", "Includes a connected web dashboard for user management, real-time analytics, and progress tracking."],
+      th: ["ระบบจำลองเสมือนจริง (VR) สำหรับฝึกการถอดประกอบชิ้นส่วนรถมอเตอร์ไซค์", "มาพร้อมระบบ Web Dashboard สำหรับผู้ดูแล เพื่อจัดการผู้ใช้และดูสถิติความคืบหน้าแบบเรียลไทม์"]
+    },
+    stageBig: "🥽",
+    stageCap: {
+      en: "[ Loading VrAssemblyBuild Component... ]",
+      th: "[ กำลังโหลด Component: VrAssemblyBuild... ]"
+    }
+  },
+  {
+    id: "v04",
     title: { en: "Coffee Shop Web App", th: "ระบบจัดการร้านกาแฟ (E-Commerce)" },
     type: "// Next.js · Prisma · Planned Sprint",
     desc: {
@@ -632,8 +652,15 @@ export default function Vault() {
                 </div>
               )}
 
-              {/* 📌 โปรเจกต์อื่นๆ ที่ไม่ได้กำหนดรูป (กรณีเผื่ออนาคต) */}
-              {activeProject.id !== "v01" && activeProject.id !== "v02" && (
+              {/* 📌 โปรเจกต์ v03 แสดงผลภาพ LOGO.png เหมือนเกม Witch */}
+              {activeProject.id === "v03" && (
+                <div className="border border-[var(--edge)] rounded-lg bg-[var(--bg-panel)] min-h-[340px] flex flex-col items-center justify-center gap-3.5 text-center p-6 mb-7 shadow-sm overflow-hidden relative">
+                  <img src="/LOGO.png" alt="VR Motorcycle Assembly Logo" onError={(e) => { e.currentTarget.src = "/LOGO.png" }} className="h-[280px] md:h-[320px] w-auto object-contain drop-shadow-xl rounded-md" />
+                </div>
+              )}
+
+              {/* 📌 โปรเจกต์อื่นๆ ที่ไม่ได้กำหนดรูป (กรณีเผื่ออนาคต) เพิ่ม v03 เข้าไปในเงื่อนไข */}
+              {activeProject.id !== "v01" && activeProject.id !== "v02" && activeProject.id !== "v03" && (
                 <div className="border border-[var(--edge)] rounded-lg bg-[var(--bg-panel)] min-h-[340px] flex flex-col items-center justify-center gap-3.5 text-center p-10 mb-7 shadow-sm">
                   <div className="text-[2.4rem]">{activeProject.stageBig}</div>
                   <div className="font-mono text-[0.8rem] text-[var(--text-dim)] max-w-[460px]">{activeProject.stageCap[language]}</div>
@@ -715,7 +742,15 @@ export default function Vault() {
                   </div>
                 )}
                 
+                {/* 📌 เรียกใช้ Component ใหม่สำหรับ v03 */}
                 {activeProjectId === "v03" && (
+                  <div className="w-full">
+                    <VrAssemblyBuild />
+                  </div>
+                )}
+                
+                {/* 📌 Coffee Shop Web App ถูกย้ายมาเป็น v04 */}
+                {activeProjectId === "v04" && (
                   <div className="p-10 border border-dashed border-[var(--edge)] rounded bg-[var(--bg-panel-2)] text-center flex flex-col items-center justify-center min-h-[200px]">
                     <div className="text-3xl mb-3 animate-pulse opacity-80">🚧</div>
                     <h3 className="font-mono text-lg text-[var(--text)] font-bold mb-2">Module Scheduled for Deployment</h3>
