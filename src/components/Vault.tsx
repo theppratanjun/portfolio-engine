@@ -119,42 +119,40 @@ export default function Vault() {
     const IDLE_LIMIT = 30000; 
     const COUNTDOWN_SECONDS = 30; 
 
-    const resetIdleTimer = () => {
-      if (isIdleWarningOpen) return; // ถ้าเตือนอยู่ บังคับให้กดที่ปุ่มเท่านั้น
-      
-      // 📌 1. สแกนหาแท็ก <video> ทั้งหน้าเว็บ และเช็คว่ามัน "กำลังเล่นอยู่" (ไม่พับ ไม่จบ) ใช่หรือไม่
+    // 📌 ฟังก์ชันที่จะทำงาน "ณ วินาทีที่หมดเวลา" (ก่อนจะเตะออก)
+    const handleIdleTimeout = () => {
+      // 1. สแกนหาว่า ณ วินาทีนี้ มีวิดีโอตัวไหนในหน้าเว็บที่ "กำลังเล่นอยู่" ไหม
       const isVideoPlaying = Array.from(document.querySelectorAll('video')).some(
         (video) => !video.paused && !video.ended
       );
-      
-      // ล้างเวลาเก่าทิ้งก่อนเสมอ
-      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
 
-      // 📌 2. ถ้าระบบจับได้ว่ามีวิดีโอเล่นอยู่ ให้ "หยุดพักการทำงาน" ไปเลย ไม่ต้องตั้งเวลาใหม่!
-      if (isVideoPlaying) return; 
+      // 2. ถ้ามีวิดีโอกำลังเล่นอยู่ ให้ "ต่อเวลา" การนับถอยหลังรอบใหม่ไปเลยเงียบๆ (ไม่เตะออก)
+      if (isVideoPlaying) {
+        idleTimerRef.current = setTimeout(handleIdleTimeout, IDLE_LIMIT);
+        return;
+      }
 
-      idleTimerRef.current = setTimeout(() => {
-        setIsIdleWarningOpen(true);
-        setIdleCountdown(COUNTDOWN_SECONDS);
-      }, IDLE_LIMIT);
+      // 3. ถ้าไม่มีวิดีโอเล่นอยู่ ค่อยแสดงป๊อปอัปแจ้งเตือนให้กดรับทราบ
+      setIsIdleWarningOpen(true);
+      setIdleCountdown(COUNTDOWN_SECONDS);
     };
 
-    // ตรวจจับทุกการกระทำของผู้ใช้
+    const resetIdleTimer = () => {
+      if (isIdleWarningOpen) return; // ถ้าเตือนอยู่ บังคับให้กดที่ปุ่มเท่านั้น
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      
+      // เริ่มจับเวลาใหม่ โดยถ้าหมดเวลาให้ไปเรียกฟังก์ชัน handleIdleTimeout เพื่อเช็คก่อนเสมอ
+      idleTimerRef.current = setTimeout(handleIdleTimeout, IDLE_LIMIT);
+    };
+
+    // ตรวจจับทุกการกระทำของผู้ใช้เพื่อรีเซ็ตเวลา
     const events = ['mousemove', 'keydown', 'scroll', 'click', 'touchstart'];
     events.forEach(e => window.addEventListener(e, resetIdleTimer));
-    
-    // 📌 3. เมื่อวิดีโอกดเล่น, สต็อป, หรือดูจนจบ ให้เรียก resetIdleTimer เพื่อให้มันเช็คสถานะอีกรอบ
-    window.addEventListener('play', resetIdleTimer, true);
-    window.addEventListener('pause', resetIdleTimer, true);
-    window.addEventListener('ended', resetIdleTimer, true);
 
     resetIdleTimer();
 
     return () => {
       events.forEach(e => window.removeEventListener(e, resetIdleTimer));
-      window.removeEventListener('play', resetIdleTimer, true);
-      window.removeEventListener('pause', resetIdleTimer, true);
-      window.removeEventListener('ended', resetIdleTimer, true);
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     };
   }, [isUnlocked, isIdleWarningOpen]);
