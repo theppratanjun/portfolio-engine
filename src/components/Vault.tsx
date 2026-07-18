@@ -96,8 +96,9 @@ export default function Vault() {
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [isRegisterMode, setIsRegisterMode] = useState(false);
-  // 📌 State สำหรับระบบ Idle Timeout (5 นาที)
+  // 📌 State สำหรับระบบ Idle Timeout (1 นาที)
   const [isIdleWarningOpen, setIsIdleWarningOpen] = useState(false);
+  const [isLoggedOutPopupOpen, setIsLoggedOutPopupOpen] = useState(false); // 📌 1. สั่งเปิด LoggedOutPopupOpen
   const [idleCountdown, setIdleCountdown] = useState(30);
   const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -115,8 +116,8 @@ export default function Vault() {
     // const COUNTDOWN_SECONDS = 40; // นับถอยหลัง 40 วิ (รวมเป็น 5 นาทีเป๊ะ)
 
     // 📌 ตั้งค่าสำหรับทดสอบ: เตะออกใน 1 นาที (ป๊อปอัปเด้งตอน 30 วิ)
-    const IDLE_LIMIT = 30000; // รอ 30 วินาที (30,000 มิลลิวินาที) ให้ป๊อปอัปเด้ง
-    const COUNTDOWN_SECONDS = 30; // ให้นับถอยหลังอีก 30 วินาที (รวมเป็น 60 วินาทีเป๊ะ)
+    const IDLE_LIMIT = 30000; // รอ 30 วินาที ให้ป๊อปอัปเด้ง
+    const COUNTDOWN_SECONDS = 30; // นับถอยหลัง 30 วินาที
 
     const resetIdleTimer = () => {
       if (isIdleWarningOpen) return; // ถ้าเตือนอยู่ บังคับให้ต้องกดปุ่มเท่านั้น
@@ -128,13 +129,27 @@ export default function Vault() {
       }, IDLE_LIMIT);
     };
 
-    // ตรวจจับทุกการกระทำของผู้ใช้
+    // 📌 ฟังก์ชันสั่งหยุดเวลาชั่วคราว ตอนที่ผู้ใช้กำลังดูวิดีโออยู่
+    const pauseIdleTimer = () => {
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    };
+
+    // ตรวจจับทุกการกระทำของผู้ใช้ (ขยับเมาส์, เลื่อนจอ ฯลฯ)
     const events = ['mousemove', 'keydown', 'scroll', 'click', 'touchstart'];
     events.forEach(e => window.addEventListener(e, resetIdleTimer));
+    
+    // 📌 ดักฟัง Event ของ Video จากทั้งเว็บไซต์ (ทะลุ Component ด้วย Capture Phase)
+    window.addEventListener('play', pauseIdleTimer, true);   // กดเล่นปุ๊บ หยุดจับเวลา
+    window.addEventListener('pause', resetIdleTimer, true);  // กดสตอป ให้เริ่มนับเวลาใหม่
+    window.addEventListener('ended', resetIdleTimer, true);  // ดูจบแล้ว ให้เริ่มนับเวลาใหม่
+
     resetIdleTimer();
 
     return () => {
       events.forEach(e => window.removeEventListener(e, resetIdleTimer));
+      window.removeEventListener('play', pauseIdleTimer, true);
+      window.removeEventListener('pause', resetIdleTimer, true);
+      window.removeEventListener('ended', resetIdleTimer, true);
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     };
   }, [isUnlocked, isIdleWarningOpen]);
@@ -148,6 +163,7 @@ export default function Vault() {
             clearInterval(countdownTimerRef.current!);
             window.dispatchEvent(new Event("triggerVaultLogout"));
             setIsIdleWarningOpen(false);
+            setIsLoggedOutPopupOpen(true); // 📌 2. สั่งเปิดหน้าต่างแจ้งเตือนว่าโดนเตะแล้ว!
             return 0;
           }
           return prev - 1;
@@ -445,6 +461,36 @@ export default function Vault() {
 
     return createPortal(
       <>
+        {/* 📌 ป๊อปอัปแจ้งเตือนเมื่อถูกเตะออกจากระบบเรียบร้อยแล้ว (รอคลิก) */}
+        {isLoggedOutPopupOpen && (
+          <div 
+            className="fixed inset-0 bg-black/85 backdrop-blur-[6px] flex items-center justify-center p-5 animate-fade-in pointer-events-auto"
+            style={{ zIndex: 999999 }}
+            onClick={() => setIsLoggedOutPopupOpen(false)}
+          >
+            <div 
+              className="w-full max-w-[340px] bg-[var(--bg-panel)] border border-[var(--edge)] rounded-lg p-6 text-center shadow-2xl"
+              onClick={(e) => e.stopPropagation()} // ป้องกันคลิกในกล่องแล้วกล่องปิด
+            >
+              <div className="text-4xl mb-4">⏱️</div>
+              <h3 className="text-[1.1rem] font-bold font-mono text-[var(--text)] mb-2">
+                {language === "en" ? "Session Expired" : "หมดเวลาการใช้งาน"}
+              </h3>
+              <p className="text-[var(--text-dim)] text-[0.8rem] font-mono mb-6 leading-relaxed">
+                {language === "en" 
+                  ? "You have been automatically logged out due to inactivity."
+                  : "ระบบได้ทำการออกจากระบบอัตโนมัติ เนื่องจากไม่มีการใช้งานเป็นเวลานาน"}
+              </p>
+              <button 
+                onClick={() => setIsLoggedOutPopupOpen(false)}
+                className="w-full bg-[var(--bg-panel-2)] border border-[var(--edge)] text-[var(--text)] font-mono text-[0.8rem] py-2.5 rounded hover:text-[var(--accent)] hover:border-[var(--accent)] transition-all font-bold"
+              >
+                {language === "en" ? "ACKNOWLEDGE" : "รับทราบ"}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* 📌 ป๊อปอัปเตือนผู้ใช้หากไม่มีกิจกรรมเคลื่อนไหวในหน้าเว็บ (Idle Timeout) */}
         {isIdleWarningOpen && (
           <div 
@@ -480,6 +526,7 @@ export default function Vault() {
             </div>
           </div>
         )}
+
         <div 
           className={`fixed inset-0 bg-black/65 backdrop-blur-[4px] flex items-center justify-center p-5 transition-all duration-250 ${isAuthOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
           style={{ zIndex: 99998 }}
