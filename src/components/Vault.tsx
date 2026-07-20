@@ -260,11 +260,23 @@ export default function Vault() {
     window.addEventListener("openVaultAuthModal", handleOpenAuth);
 
     const doMasterLogout = async () => {
-      await fetch("/api/auth/logout", { method: "POST" }); 
-      await supabase.auth.signOut(); 
+      // 📌 1. ใส่ Try-Catch ดักไว้ ถ้ายิง API ไม่ผ่านเพราะแท็บหลับ ให้ข้ามไปทำคำสั่งต่อไปทันที!
+      try {
+        await fetch("/api/auth/logout", { method: "POST" });
+      } catch (err) {
+        console.warn("Backend logout failed due to inactive tab.");
+      }
+
+      try {
+        await supabase.auth.signOut();
+      } catch (err) {
+        console.warn("Supabase logout failed.");
+      }
+
+      // 📌 2. บังคับล้างค่าในเครื่องและล็อกหน้าเว็บ "เสมอ" ไม่ว่าจะเกิด Error ใดๆ ขึ้นก็ตาม
       sessionStorage.removeItem("vault_session"); 
       setIsUnlocked(false);
-      setIsIdleWarningOpen(false); // 📌 ย้ายมาสั่งปิดป๊อปอัปตรงนี้แทน!
+      setIsIdleWarningOpen(false); 
       window.dispatchEvent(new Event("authStateChanged"));
     };
     window.addEventListener("triggerVaultLogout", doMasterLogout);
